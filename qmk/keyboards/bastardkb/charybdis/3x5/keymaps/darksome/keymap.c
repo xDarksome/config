@@ -24,6 +24,12 @@
 
 #define G3_SPC LT(GAME3, KC_SPC)
 
+enum custom_keycodes {
+    G1_G = SAFE_RANGE,
+    G1_DEL,
+    G1_TAB,
+};
+
 enum layers {
   MAIN,
   MS,
@@ -92,8 +98,8 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   [GAME1] = LAYOUT(
     _______ , _______ , _______ , _______ , KC_F1   ,                     _______ , _______ , _______ , _______ , _______ ,
     _______ , _______ , _______ , _______ , KC_F2   ,                     _______ , _______ , _______ , _______ , _______ ,
-    _______ , _______ , _______ , _______ , KC_F3   ,                     _______ , _______ , _______ , _______ , _______ ,
-                                  KC_TAB  , G3_SPC  , KC_LSFT , _______ , _______
+      G1_G  , _______ , _______ , _______ , KC_F3   ,                     _______ , _______ , _______ , _______ , _______ ,
+                                  G1_TAB  , G3_SPC  , G1_DEL  , _______ , _______
   ),
 
   [GAME2] = LAYOUT(
@@ -187,6 +193,71 @@ void keyboard_post_init_user(void) {
     set_auto_mouse_enable(true);
 }
 
+bool handle_imm_mt(uint16_t keycode, keyrecord_t *record) {
+    typedef struct {
+        bool active;
+        bool interrupted;
+        uint16_t t0;
+    } state_t;
+
+    static state_t g1_g, g1_tab, g1_del;
+
+    void mark_interrupt(state_t *st, uint16_t self_kc, uint16_t keycode, keyrecord_t *record) {
+        if (!st->active) return;
+        if (!record->event.pressed) return;
+        if (keycode == self_kc) return;
+        st->interrupted = true;
+    }
+
+    mark_interrupt(&g1_g, G1_G, keycode, record);
+    mark_interrupt(&g1_tab, G1_TAB, keycode, record);
+    mark_interrupt(&g1_del, G1_DEL, keycode, record);
+
+    state_t* st;
+    uint8_t mod_bit;
+    uint16_t tap_kc;
+
+    switch (keycode) {
+      case G1_G:
+        st = &g1_g;
+        mod_bit = MOD_BIT(KC_LSFT);
+        tap_kc = KC_G;
+        break;
+      case G1_TAB:
+        st = &g1_tab;
+        mod_bit = MOD_BIT(KC_LALT);
+        tap_kc = KC_TAB;
+        break;
+      case G1_DEL:
+        st = &g1_del;
+        mod_bit = MOD_BIT(KC_LCTL);
+        tap_kc = KC_DEL;
+        break;
+      default: return true; 
+    }
+
+    if (record->event.pressed) {
+        st->active = true;
+        st->interrupted = false;
+        st->t0 = timer_read();
+
+        register_mods(mod_bit);
+    } else {
+        unregister_mods(mod_bit);
+
+        uint16_t elapsed = timer_elapsed(st->t0);
+        bool is_tap = (elapsed < TAPPING_TERM);
+
+        st->active = false;
+
+        if (is_tap && !st->interrupted) {
+            tap_code(tap_kc);
+        }
+    }
+
+    return false;
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
   // Makes mouse layer behave like "oneshot"
   if (!record->event.pressed && get_highest_layer(layer_state) == MS) {
@@ -198,5 +269,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
         break;
     }
   }
-  return true;
-} 
+
+  return handle_imm_mt(keycode, record);
+}
