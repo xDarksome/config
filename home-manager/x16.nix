@@ -6,5 +6,7 @@
 
     ./sway
     ./wezterm
+
+    ./sway
   ];
 }

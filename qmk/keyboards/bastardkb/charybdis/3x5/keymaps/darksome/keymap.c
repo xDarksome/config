@@ -22,13 +22,12 @@
 #define R2_TMB1 LT(SYS, LCTL(KC_BSPC))
 #define R2_TMB2 LT(SYM, KC_0)
 
-#define G3_SPC LT(GAME3, KC_SPC)
+#define G1_G LSFT_T(KC_G)
+#define G1_TAB LALT_T(KC_TAB)
+#define G1_SPC LT(GAME3, KC_SPC)
+#define G1_DEL LCTL_T(KC_DEL)
 
-enum custom_keycodes {
-    G1_G = SAFE_RANGE,
-    G1_DEL,
-    G1_TAB,
-};
+#define G2_TAB LT(GAME3, KC_TAB)
 
 enum layers {
   MAIN,
@@ -55,14 +54,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [MS] = LAYOUT(
     _______ , _______ , _______ , _______ , _______ ,                     _______ , _______ , _______ , _______ , _______ ,
-    _______ , _______ , _______ , _______ , _______ ,                     _______ , KC_BTN1 , KC_BTN3 , KC_BTN2 , MO(SCR) ,
+    _______ , _______ , _______ , _______ , _______ ,                     _______ , MS_BTN1 , MS_BTN3 , MS_BTN2 , MO(SCR) ,
     _______ , _______ , _______ , _______ , _______ ,                     _______ , _______ , _______ , _______ , _______ ,
                                   _______ , _______ , _______ , _______ , TO(MAIN)
   ),
 
   [SCR] = LAYOUT(
     _______ , _______ , _______ , _______ , _______ ,                     _______ , _______ , _______ , _______ , _______ ,
-    _______ , _______ , _______ , _______ , _______ ,                     _______ , KC_BTN1 , KC_BTN3 , KC_BTN2 , TO(MAIN),
+    _______ , _______ , _______ , _______ , _______ ,                     _______ , MS_BTN1 , MS_BTN3 , MS_BTN2 , TO(MAIN),
     KC_LGUI , KC_LALT , KC_LCTL , KC_LSFT , _______ ,                     _______ , TO(SCR) , _______ , _______ , _______ ,
                                   _______ , _______ , _______ , _______ , TO(MAIN)
   ),
@@ -99,14 +98,14 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
     _______ , _______ , _______ , _______ , KC_F1   ,                     _______ , _______ , _______ , _______ , _______ ,
     _______ , _______ , _______ , _______ , KC_F2   ,                     _______ , _______ , _______ , _______ , _______ ,
       G1_G  , _______ , _______ , _______ , KC_F3   ,                     _______ , _______ , _______ , _______ , _______ ,
-                                  G1_TAB  , G3_SPC  , G1_DEL  , _______ , _______
+                                  G1_TAB  , G1_SPC  , G1_DEL  , _______ , _______
   ),
 
   [GAME2] = LAYOUT(
     _______ , _______ , _______ , _______ , KC_F1  ,                     _______ , _______ , _______ , _______ , _______ ,
     _______ , _______ , _______ , _______ , KC_F2  ,                     _______ , _______ , _______ , _______ , _______ ,
     _______ , _______ , _______ , _______ , KC_F3  ,                     _______ , _______ , _______ , _______ , _______ ,
-                                  KC_TAB  , KC_SPC  ,MO(GAME3), _______ , _______
+                                  KC_LALT  , KC_SPC , KC_LCTL , TO(MAIN) , _______
   ),
 
   [GAME3] = LAYOUT(
@@ -193,66 +192,12 @@ void keyboard_post_init_user(void) {
     set_auto_mouse_enable(true);
 }
 
-bool handle_imm_mt(uint16_t keycode, keyrecord_t *record) {
-    typedef struct {
-        bool active;
-        bool interrupted;
-        uint16_t t0;
-    } state_t;
-
-    static state_t g1_g, g1_tab, g1_del;
-
-    void mark_interrupt(state_t *st, uint16_t self_kc, uint16_t keycode, keyrecord_t *record) {
-        if (!st->active) return;
-        if (!record->event.pressed) return;
-        if (keycode == self_kc) return;
-        st->interrupted = true;
-    }
-
-    mark_interrupt(&g1_g, G1_G, keycode, record);
-    mark_interrupt(&g1_tab, G1_TAB, keycode, record);
-    mark_interrupt(&g1_del, G1_DEL, keycode, record);
-
-    state_t* st;
-    uint8_t mod_bit;
-    uint16_t tap_kc;
-
+bool get_speculative_hold(uint16_t keycode, keyrecord_t* record) {
     switch (keycode) {
-      case G1_G:
-        st = &g1_g;
-        mod_bit = MOD_BIT(KC_LSFT);
-        tap_kc = KC_G;
-        break;
-      case G1_TAB:
-        st = &g1_tab;
-        mod_bit = MOD_BIT(KC_LALT);
-        tap_kc = KC_TAB;
-        break;
-      case G1_DEL:
-        st = &g1_del;
-        mod_bit = MOD_BIT(KC_LCTL);
-        tap_kc = KC_DEL;
-        break;
-      default: return true; 
-    }
-
-    if (record->event.pressed) {
-        st->active = true;
-        st->interrupted = false;
-        st->t0 = timer_read();
-
-        register_mods(mod_bit);
-    } else {
-        unregister_mods(mod_bit);
-
-        uint16_t elapsed = timer_elapsed(st->t0);
-        bool is_tap = (elapsed < TAPPING_TERM);
-
-        st->active = false;
-
-        if (is_tap && !st->interrupted) {
-            tap_code(tap_kc);
-        }
+        case G1_G:
+        case G1_TAB:
+        case G1_DEL:
+            return true;
     }
 
     return false;
@@ -262,13 +207,13 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
   // Makes mouse layer behave like "oneshot"
   if (!record->event.pressed && get_highest_layer(layer_state) == MS) {
     switch (keycode) {
-      case KC_BTN1:
-      case KC_BTN2:
-      case KC_BTN3:
+      case MS_BTN1:
+      case MS_BTN2:
+      case MS_BTN3:
         layer_move(MAIN);
         break;
     }
   }
 
-  return handle_imm_mt(keycode, record);
+  return true;
 }
