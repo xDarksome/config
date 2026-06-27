@@ -35,6 +35,11 @@
     };
 
     homeConfigurations = {
+      core = home-manager.lib.homeManagerConfiguration {
+        inherit pkgs extraSpecialArgs;
+        modules = [./home-manager/core.nix];
+      };
+
       x16 = home-manager.lib.homeManagerConfiguration {
         inherit pkgs extraSpecialArgs;
         modules = [./home-manager/x16.nix];
