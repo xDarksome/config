@@ -518,17 +518,24 @@ $env.config = {
   ]
 }
 
-def j [date: string = ""] {
-  let date = if $date == "" {
-    date now
-  } else {
-    $date | date from-human
-  }
+use content_store_fs.nu 
+use event_store_fs.nu 
+use view_fs.nu
+use view_memos.nu
 
-  hx ~/sync/brain/journals/($date | format date %Y_%m_%d).md
-} 
+# Non-sensitive. Memos instance is localhost only.
+$env.MEMOS_TOKEN = 'memos_pat_5ovGqvEj7w1JAJLWSaH338yrXTJNTCTX'
 
-alias jj = j yesterday
+$env.CONTENT_STORE = (content_store_fs new ~/sync/content)
+$env.EVENT_STORE = (event_store_fs new ~/sync/events)
+$env.VIEW_FS = (view_fs new ~/view)
+$env.VIEW = [
+    ($env.VIEW_FS | view_fs upcast)
+  (view_memos new $env.MEMOS_TOKEN)
+]
+
+use command/mod.nu *
+use query/mod.nu *
  
 alias kp = keepassxc-cli
 alias dev = nix develop --command "nu"

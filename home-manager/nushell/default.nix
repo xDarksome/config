@@ -1,5 +1,7 @@
 {
   pkgs,
+  config,
+  username,
   ...
 }: {
   home.packages = with pkgs; [
@@ -18,9 +20,5 @@
     })
   ];
 
-  home.file = {
-    ".config/nushell/config.nu".source = ./config.nu;
-    ".config/nushell/env.nu".source = ./env.nu;
-    ".config/nushell/zoxide.nu".source = ./zoxide.nu;
-  };
+  home.file.".config/nushell".source = config.lib.file.mkOutOfStoreSymlink "/home/${username}/nixos-config/home-manager/nushell";
 }

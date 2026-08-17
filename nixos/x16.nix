@@ -27,37 +27,44 @@
 
     graphics.enable = true;
     graphics.enable32Bit = true;
-    nvidia = {
-      # Modesetting is required.
-      modesetting.enable = true;
 
-      # Nvidia power management. Experimental, and can cause sleep/suspend to fail.
-      powerManagement.enable = true;
-      # Fine-grained power management. Turns off GPU when not in use.
-      # Experimental and only works on modern Nvidia GPUs (Turing or newer).
-      # powerManagement.finegrained = true;
+    # nvidia = {
+    #   # Modesetting is required.
+    #   modesetting.enable = true;
 
-      # Use the NVidia open source kernel module (not to be confused with the
-      # independent third-party "nouveau" open source driver).
-      # Support is limited to the Turing and later architectures. Full list of
-      # supported GPUs is at:
-      # https://github.com/NVIDIA/open-gpu-kernel-modules#compatible-gpus
-      # Only available from driver 515.43.04+
-      # Currently alpha-quality/buggy, so false is currently the recommended setting.
-      open = false;
+    #   # Nvidia power management. Experimental, and can cause sleep/suspend to fail.
+    #   powerManagement.enable = true;
+    #   # Fine-grained power management. Turns off GPU when not in use.
+    #   # Experimental and only works on modern Nvidia GPUs (Turing or newer).
+    #   # powerManagement.finegrained = true;
 
-      # Enable the Nvidia settings menu,
-      # accessible via `nvidia-settings`.
-      nvidiaSettings = true;
+    #   # Use the NVidia open source kernel module (not to be confused with the
+    #   # independent third-party "nouveau" open source driver).
+    #   # Support is limited to the Turing and later architectures. Full list of
+    #   # supported GPUs is at:
+    #   # https://github.com/NVIDIA/open-gpu-kernel-modules#compatible-gpus
+    #   # Only available from driver 515.43.04+
+    #   # Currently alpha-quality/buggy, so false is currently the recommended setting.
+    #   open = false;
 
-      # Optionally, you may need to select the appropriate driver version for your specific GPU.
-      package = config.boot.kernelPackages.nvidiaPackages.beta;
-    };
+    #   # Enable the Nvidia settings menu,
+    #   # accessible via `nvidia-settings`.
+    #   nvidiaSettings = true;
+
+    #   # Optionally, you may need to select the appropriate driver version for your specific GPU.
+    #   package = config.boot.kernelPackages.nvidiaPackages.beta;
+    # };
 
     bluetooth.enable = true;
   };
 
 
+  boot.extraModprobeConfig = ''
+    blacklist nouveau
+    options nouveau modeset=0
+  '';
+  boot.blacklistedKernelModules = [ "nouveau" "nvidia" "nvidia_drm" "nvidia_modeset" ];
+  
   boot = {
     loader = {
       systemd-boot.enable = true;
@@ -106,6 +113,8 @@
 
   services.asusd.enable = true;
 
+  services.memos.enable = true;
+
   services.tor = {
     # enable = true;
     # settings = {
@@ -130,6 +139,15 @@
     udev.extraRules = ''
       KERNEL=="hidraw*", ATTRS{idVendor}=="d13e", ATTRS{idProduct}=="cc10", GROUP="plugdev", MODE="0666", SYMLINK+="coldcard"
       KERNELS=="input*", ATTRS{name}=="Asus Keyboard", ENV{LIBINPUT_IGNORE_DEVICE}="1"
+
+      # Remove NVIDIA USB xHCI Host Controller devices, if present
+      ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c0330", ATTR{power/control}="auto", ATTR{remove}="1"
+      # Remove NVIDIA USB Type-C UCSI devices, if present
+      ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c8000", ATTR{power/control}="auto", ATTR{remove}="1"
+      # Remove NVIDIA Audio devices, if present
+      ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x040300", ATTR{power/control}="auto", ATTR{remove}="1"
+      # Remove NVIDIA VGA/3D controller devices
+      ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", ATTR{power/control}="auto", ATTR{remove}="1"
     '';
     blueman.enable = true;
   };
@@ -159,7 +177,7 @@
     xkb.layout = "us";
     xkb.variant = "";
     xkb.options = "grp:win_space_toggle";
-    videoDrivers = ["nvidia"];
+    videoDrivers = ["intel"];
   };
 
   services.pipewire = {
@@ -196,13 +214,9 @@
     mullvad-vpn
     tor-browser
 
-    # ffmpeg7 is broken
-    # TODO: remove once fixed
-    (mullvad-browser.override {
-      ffmpeg = ffmpeg_6;
-    })
+    mullvad-browser
 
-    logseq
+    # logseq
 
     electrum
 
@@ -217,6 +231,12 @@
   ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
+
+  # Logseq still uses this.
+  # TODO: Revisit
+  nixpkgs.config.permittedInsecurePackages = [
+    "electron-39.8.10"
+  ];
 
   home-manager = {
     extraSpecialArgs = {

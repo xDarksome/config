@@ -17,10 +17,12 @@
   home.packages = with pkgs; [
     zoxide
 
+    file
     unixtools.whereis
     wget
     zip
     unzip
+    wl-clipboard
 
     gnupg
     gpg-tui

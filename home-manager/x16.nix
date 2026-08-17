@@ -1,4 +1,5 @@
 {
+  pkgs,
  ...
 }: {
   imports = [
@@ -8,5 +9,9 @@
     ./wezterm
 
     ./sway
+  ];
+
+  home.packages = with pkgs; [
+    wl-clipboard
   ];
 }
