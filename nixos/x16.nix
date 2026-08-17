@@ -216,8 +216,6 @@
 
     mullvad-browser
 
-    # logseq
-
     electrum
 
     qmk
@@ -231,12 +229,6 @@
   ];
 
   nixpkgs.hostPlatform = lib.mkDefault "x86_64-linux";
-
-  # Logseq still uses this.
-  # TODO: Revisit
-  nixpkgs.config.permittedInsecurePackages = [
-    "electron-39.8.10"
-  ];
 
   home-manager = {
     extraSpecialArgs = {
