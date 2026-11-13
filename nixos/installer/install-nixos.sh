@@ -1,7 +1,7 @@
 # Usage: install-nixos <host> <disk>
 #   host  a nixosConfigurations entry that uses nixos/disko.nix, e.g. x16-disko
 #   disk  the whole disk to ERASE and install onto, e.g. /dev/nvme0n1
-# Environment (set by the ISO): FLAKE, USERNAME, REPO_URL.
+# Environment (set by the ISO): FLAKE, FLAKE_REV, USERNAME, REPO_URL.
 
 usage() {
   echo "usage: install-nixos <host> <disk>" >&2
@@ -29,15 +29,19 @@ disko --mode destroy,format,mount --argstr device "$disk" "$FLAKE/nixos/disko.ni
 echo "==> Installing $host"
 nixos-install --flake "$FLAKE#$host" --no-root-passwd
 
-echo "==> Cloning config to /home/$USERNAME/nixos-config"
+echo "==> Copying config to /home/$USERNAME/nixos-config (no network)"
+# The ISO carries the flake source without .git history. Set up an empty repo
+# pointing at the remote; once a VPN is up, `git fetch` + `git reset` attaches
+# the history without touching the files.
 target=/mnt/home/$USERNAME/nixos-config
-if ! git clone "$REPO_URL" "$target"; then
-  echo "clone failed, copying the ISO's snapshot instead (no git history)" >&2
-  cp -r --no-preserve=mode "$FLAKE/." "$target"
-fi
+cp -r --no-preserve=mode "$FLAKE/." "$target"
+git -C "$target" init -q
+git -C "$target" remote add origin "$REPO_URL"
 nixos-enter --root /mnt -c "chown -R $USERNAME:users /home/$USERNAME/nixos-config"
 
 echo "==> Set the password for $USERNAME"
 until nixos-enter --root /mnt -c "passwd $USERNAME"; do :; done
 
 echo "==> Done. Reboot and remove the installer USB stick."
+echo "    Once the VPN is up, link the config to its git history:"
+echo "    cd ~/nixos-config && git fetch origin && git reset $FLAKE_REV"

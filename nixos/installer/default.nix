@@ -21,6 +21,8 @@
     ];
     runtimeEnv = {
       FLAKE = "/etc/nixos-config";
+      # Commit the ISO was built from (dirty if built with uncommitted changes).
+      FLAKE_REV = inputs.self.rev or inputs.self.dirtyRev or "unknown";
       USERNAME = username;
       REPO_URL = "https://github.com/xDarksome/config";
     };
