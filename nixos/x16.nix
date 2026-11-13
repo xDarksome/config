@@ -121,6 +121,9 @@
     mullvad-vpn = {
       enable = true;
       package = pkgs.mullvad-vpn;
+      # Block traffic from early boot until the daemon has applied its own
+      # firewall, so nothing leaves on the real IP before the tunnel is up.
+      enableEarlyBootBlocking = true;
     };
     udev.packages = with pkgs; [
       qmk-udev-rules
