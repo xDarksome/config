@@ -2,6 +2,7 @@
 # /etc/nixos-config and an `install-nixos` command that partitions a disk with
 # disko and installs one of the flake's hosts onto it.
 {
+  config,
   pkgs,
   lib,
   inputs,
@@ -18,6 +19,7 @@
       nixos-install-tools
       util-linux
       coreutils
+      config.services.mullvad-vpn.package
     ];
     runtimeEnv = {
       FLAKE = "/etc/nixos-config";
@@ -39,6 +41,13 @@ in {
     disko
     pkgs.git
   ];
+
+  # Route the install through Mullvad. Log in on the live system (see
+  # install-nixos.sh); the account number is never baked into the ISO.
+  services.mullvad-vpn.enable = true; # CLI-only package, no GUI
+  services.resolved.enable = true;
+  # Don't contact NTP servers from the real IP before the tunnel is up.
+  services.timesyncd.enable = false;
 
   nix.settings.experimental-features = ["nix-command" "flakes"];
   # disko's CLI evaluates the disk layout file against <nixpkgs>.
