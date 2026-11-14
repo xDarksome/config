@@ -1,16 +1,14 @@
 # Disk layout for new installs: GPT with an EFI system partition and a
 # LUKS-encrypted ext4 root.
 #
-# Used in two ways:
-# - as a NixOS module (imported by hosts), where it generates `fileSystems`
-#   and `boot.initrd.luks`. These refer to partitions by label, so `device`
-#   only matters at format time.
-# - by the disko CLI in the installer, which passes the target disk:
-#   disko --mode destroy,format,mount --argstr device /dev/nvme0n1 ./disko.nix
-{device ? "/dev/nvme0n1", ...}: {
+# The installer ISO ships a pre-built disko script per host, so the device is a
+# fixed path that install-nixos symlinks to the chosen disk before running it.
+# Partitions are referenced by label, so the installed system's fileSystems
+# and boot.initrd.luks don't depend on this path.
+{
   disko.devices.disk.main = {
     type = "disk";
-    inherit device;
+    device = "/run/install-target";
     content = {
       type = "gpt";
       partitions = {

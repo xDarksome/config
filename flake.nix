@@ -41,13 +41,22 @@
       };
 
       # x16 on a disk partitioned by disko. Install this one from the installer
-      # ISO: `install-nixos x16-disko /dev/nvme0n1`.
+      # ISO with `install-nixos`.
       x16-disko = nixpkgs.lib.nixosSystem {
         inherit system specialArgs;
         modules = [
           ./nixos/x16.nix
           inputs.disko.nixosModules.disko
-          (import ./nixos/disko.nix {})
+          ./nixos/disko.nix
+        ];
+      };
+
+      # Small disko host for the installer VM test (tests/installer.nix).
+      installer-test = nixpkgs.lib.nixosSystem {
+        inherit system specialArgs;
+        modules = [
+          inputs.disko.nixosModules.disko
+          ./tests/installer-test-host.nix
         ];
       };
 
@@ -71,9 +80,9 @@
       };
     };
 
-    # Boot the ISO in a VM and check it: nix flake check
+    # Boot the ISO in a VM, install a test host and boot it: nix flake check
     checks.${system}.installer = import ./tests/installer.nix {
-      inherit pkgs;
+      inherit pkgs username;
       inherit (self.nixosConfigurations) installer;
     };
 

@@ -1,16 +1,19 @@
 # Usage: install-nixos [--no-vpn] [host] [disk]
-#   host      a nixosConfigurations entry that uses nixos/disko.nix, e.g. x16-disko
+#   host      a host bundled on the ISO, e.g. x16-disko
 #   disk      the whole disk to ERASE and install onto, e.g. /dev/nvme0n1
 #   --no-vpn  install without a Mullvad connection (downloads use the real IP)
 # Missing host or disk are asked for interactively. If Mullvad isn't
 # connected, the script connects the network (nmtui), logs in to Mullvad and
-# connects with lockdown mode on.
+# connects with lockdown mode on. The install itself is offline: each host's
+# system and disk script are pre-built in $HOSTS_DIR/<host>/{system,disko}.
 #
-# Environment (set by the ISO): FLAKE, FLAKE_REV, HOSTS, USERNAME, REPO_URL.
+# Environment (set by the ISO): FLAKE, FLAKE_REV, HOSTS_DIR, USERNAME, REPO_URL.
+
+mapfile -t hosts < <(ls "$HOSTS_DIR")
 
 usage() {
   echo "usage: install-nixos [--no-vpn] [host] [disk]" >&2
-  echo "  hosts: $HOSTS" >&2
+  echo "  hosts: ${hosts[*]}" >&2
   echo "  disks:" >&2
   lsblk -d -o NAME,SIZE,MODEL,TYPE >&2
   exit 1
@@ -98,12 +101,11 @@ if [[ -z $host || -z $disk ]] && ! interactive; then
 fi
 
 if [[ -z $host ]]; then
-  read -ra hosts <<<"$HOSTS"
   pick "Host to install" "${hosts[@]}"
   host=$picked
 fi
-if [[ " $HOSTS " != *" $host "* ]]; then
-  echo "unknown host '$host', available: $HOSTS" >&2
+if [[ ! -d $HOSTS_DIR/$host ]]; then
+  echo "unknown host '$host', available: ${hosts[*]}" >&2
   exit 1
 fi
 
@@ -123,11 +125,13 @@ if [[ $vpn -eq 1 ]]; then
   setup_mullvad
 fi
 
-echo "==> Partitioning $disk (this ERASES it; disko will ask to confirm and for the LUKS passphrase)"
-disko --mode destroy,format,mount --argstr device "$disk" "$FLAKE/nixos/disko.nix"
+echo "==> Partitioning $disk (this ERASES it; you'll be asked to confirm and for the LUKS passphrase)"
+# The pre-built disk script targets /run/install-target.
+ln -sfn "$disk" /run/install-target
+"$HOSTS_DIR/$host/disko/bin/disko-destroy-format-mount"
 
-echo "==> Installing $host"
-nixos-install --flake "$FLAKE#$host" --no-root-passwd
+echo "==> Installing $host (offline, from the ISO)"
+nixos-install --system "$HOSTS_DIR/$host/system" --no-root-passwd --no-channel-copy
 
 echo "==> Copying config to /home/$USERNAME/nixos-config (no network)"
 # The ISO carries the flake source without .git history. Set up an empty repo
