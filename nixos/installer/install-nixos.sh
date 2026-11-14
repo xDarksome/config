@@ -143,7 +143,10 @@ ln -sfn "$disk" /run/install-target
 "$HOSTS_DIR/$host/disko/bin/disko-destroy-format-mount"
 
 echo "==> Installing $host (offline, from the ISO)"
-nixos-install --system "$HOSTS_DIR/$host/system" --no-root-passwd --no-channel-copy
+# Everything is in the ISO's store; with no substituters, nixos-install copies
+# it from there and never contacts a binary cache.
+nixos-install --system "$HOSTS_DIR/$host/system" --no-root-passwd --no-channel-copy \
+  --option substituters ""
 
 echo "==> Copying config to /home/$USERNAME/nixos-config (no network)"
 # The ISO carries the flake source without .git history. Set up an empty repo

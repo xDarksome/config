@@ -37,6 +37,8 @@
 in
   pkgs.testers.runNixOSTest {
     name = "installer-iso";
+    # The install and second boot are slow under emulation (no KVM).
+    globalTimeout = 3 * 60 * 60;
     nodes = {};
     testScript =
       builtins.replaceStrings
