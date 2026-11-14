@@ -89,14 +89,6 @@
     blueman.enable = true;
   };
 
-  services.navidrome = {
-    enable = true;
-    settings = {
-      MusicFolder = "/home/${username}/sync/music";
-    };
-  };
-  systemd.services.navidrome.serviceConfig.ProtectHome = lib.mkForce false;
-
   systemd.user.services."stalker" = {
     after = ["network.target"];
     wantedBy = ["default.target"];

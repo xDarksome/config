@@ -4,6 +4,7 @@
   config,
   lib,
   pkgs,
+  username,
   ...
 }: {
   imports = [
@@ -75,6 +76,15 @@
     # Remove NVIDIA VGA/3D controller devices
     ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", ATTR{power/control}="auto", ATTR{remove}="1"
   '';
+
+  # Music from the syncthing folder.
+  services.navidrome = {
+    enable = true;
+    settings = {
+      MusicFolder = "/home/${username}/sync/music";
+    };
+  };
+  systemd.services.navidrome.serviceConfig.ProtectHome = lib.mkForce false;
 
   services.xserver.videoDrivers = ["intel"];
 
