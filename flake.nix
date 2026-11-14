@@ -84,6 +84,12 @@
       # nix build .#installer-iso
       installer-iso = self.nixosConfigurations.installer.config.system.build.isoImage;
 
+      # Write the ISO to a USB stick: nix run .#installer-usb -- /dev/sdX
+      installer-usb = import ./nixos/installer/installer-usb.nix {
+        inherit pkgs;
+        iso = self.packages.${system}.installer-iso;
+      };
+
       # Try the ISO by hand in a VM: nix run .#installer-vm
       installer-vm = import ./tests/installer-vm.nix {
         inherit pkgs;
