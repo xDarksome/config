@@ -104,7 +104,9 @@ setup_mullvad() {
   mullvad lockdown-mode set on
   mullvad auto-connect set on
   echo "==> Connecting"
-  mullvad connect --wait
+  # --wait prints every tunnel state change (several for one connection);
+  # show only the final status below.
+  mullvad connect --wait >/dev/null || true
   if ! mullvad_connected; then
     echo "Mullvad did not connect:" >&2
     mullvad status >&2
