@@ -50,7 +50,19 @@ installable_disks() {
     grep -v -e '^/dev/zram' -e "^${live:-none}\$" || true
 }
 
-mullvad_connected() { [[ $(mullvad status 2>/dev/null | head -n1) == Connected ]]; }
+# Capture output before matching: with pipefail, `cmd | grep -q` fails when
+# grep exits early and cmd gets SIGPIPE, even though it matched.
+mullvad_connected() {
+  local status
+  status=$(mullvad status 2>/dev/null || true)
+  [[ ${status%%$'\n'*} == Connected ]]
+}
+
+mullvad_logged_in() {
+  local account
+  account=$(mullvad account get 2>/dev/null || true)
+  [[ $account == "Mullvad account:"* ]]
+}
 
 # Network -> login -> lockdown + auto-connect -> connect.
 setup_mullvad() {
@@ -63,13 +75,13 @@ setup_mullvad() {
   fi
 
   echo "==> Mullvad is not connected, setting it up"
-  until ip route show default | grep -q .; do
+  until [[ -n $(ip route show default) ]]; do
     echo "No network. Opening nmtui: choose 'Activate a connection' and pick your network."
     read -rp "Press Enter to continue (Ctrl-C to abort) "
     nmtui || true
   done
 
-  until mullvad account get 2>/dev/null | grep -q '^Mullvad account:'; do
+  until mullvad_logged_in; do
     mullvad account login || echo "login failed, try again" >&2
   done
 
