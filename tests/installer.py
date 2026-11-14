@@ -37,7 +37,15 @@ def start_command(with_iso):
     return " ".join(flags)
 
 
-machine = create_machine(start_command(with_iso=True), name="installer")
+def new_machine(with_iso, name):
+    # The driver only cleans up the machines in its list; without this, a
+    # failed test leaves QEMU running and the build hangs until it times out.
+    m = create_machine(start_command(with_iso), name=name)
+    machines.append(m)
+    return m
+
+
+machine = new_machine(with_iso=True, name="installer")
 machine.start()
 machine.wait_for_unit("multi-user.target")
 
@@ -101,13 +109,15 @@ with subtest("installed system has the config and no Mullvad login"):
     machine.succeed(f"test -f {home}/nixos-config/flake.nix")
     # As root, git refuses a repo owned by the user unless it's marked safe.
     machine.succeed(f"git -c safe.directory='*' -C {home}/nixos-config remote get-url origin | grep -q github.com")
-    machine.succeed(f"test \"$(stat -c %U {home}/nixos-config)\" = {USERNAME}")
+    # The user exists only on the installed system, so compare its UID there.
+    uid = machine.succeed(f"awk -F: '$1 == \"{USERNAME}\" {{print $3}}' /mnt/etc/passwd").strip()
+    machine.succeed(f"test \"$(stat -c %u {home}/nixos-config)\" = {uid}")
     # --no-vpn: nothing to copy.
     machine.fail("test -e /mnt/etc/mullvad-vpn")
 
 machine.shutdown()
 
-installed = create_machine(start_command(with_iso=False), name="installed")
+installed = new_machine(with_iso=False, name="installed")
 installed.start()
 
 with subtest("installed system unlocks LUKS and boots"):
