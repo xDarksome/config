@@ -51,6 +51,17 @@
         ];
       };
 
+      # Desktop PC (Ryzen 9 9950X3D, RX 9070 XT), on a disk partitioned by
+      # disko. Install it from the installer ISO with `install-nixos`.
+      pc = nixpkgs.lib.nixosSystem {
+        inherit system specialArgs;
+        modules = [
+          ./nixos/pc.nix
+          inputs.disko.nixosModules.disko
+          ./nixos/disko.nix
+        ];
+      };
+
       # Small disko host for the installer VM test (tests/installer.nix).
       installer-test = nixpkgs.lib.nixosSystem {
         inherit system specialArgs;
