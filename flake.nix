@@ -60,8 +60,22 @@
       };
     };
 
-    # nix build .#installer-iso
-    packages.${system}.installer-iso = self.nixosConfigurations.installer.config.system.build.isoImage;
+    packages.${system} = {
+      # nix build .#installer-iso
+      installer-iso = self.nixosConfigurations.installer.config.system.build.isoImage;
+
+      # Try the ISO by hand in a VM: nix run .#installer-vm
+      installer-vm = import ./tests/installer-vm.nix {
+        inherit pkgs;
+        iso = self.packages.${system}.installer-iso;
+      };
+    };
+
+    # Boot the ISO in a VM and check it: nix flake check
+    checks.${system}.installer = import ./tests/installer.nix {
+      inherit pkgs;
+      inherit (self.nixosConfigurations) installer;
+    };
 
     homeConfigurations = {
       core = home-manager.lib.homeManagerConfiguration {
