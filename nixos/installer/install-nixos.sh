@@ -1,22 +1,85 @@
-# Usage: install-nixos [--no-vpn] <host> <disk>
+# Usage: install-nixos [--no-vpn] [host] [disk]
 #   host      a nixosConfigurations entry that uses nixos/disko.nix, e.g. x16-disko
 #   disk      the whole disk to ERASE and install onto, e.g. /dev/nvme0n1
 #   --no-vpn  install without a Mullvad connection (downloads use the real IP)
+# Missing host or disk are asked for interactively. If Mullvad isn't
+# connected, the script connects the network (nmtui), logs in to Mullvad and
+# connects with lockdown mode on.
 #
-# Before running, connect Mullvad on the live system:
-#   mullvad account login          # prompts for the account number
-#   mullvad lockdown-mode set on   # block all traffic outside the tunnel
-#   mullvad auto-connect set on
-#   mullvad connect
-#
-# Environment (set by the ISO): FLAKE, FLAKE_REV, USERNAME, REPO_URL.
+# Environment (set by the ISO): FLAKE, FLAKE_REV, HOSTS, USERNAME, REPO_URL.
 
 usage() {
-  echo "usage: install-nixos [--no-vpn] <host> <disk>" >&2
-  echo "  e.g. install-nixos x16-disko /dev/nvme0n1" >&2
-  echo >&2
+  echo "usage: install-nixos [--no-vpn] [host] [disk]" >&2
+  echo "  hosts: $HOSTS" >&2
+  echo "  disks:" >&2
   lsblk -d -o NAME,SIZE,MODEL,TYPE >&2
   exit 1
+}
+
+interactive() { [[ -t 0 ]]; }
+
+# pick <prompt> <option>... : sets $picked. Auto-picks a single option.
+pick() {
+  local prompt=$1
+  shift
+  if [[ $# -eq 1 ]]; then
+    picked=$1
+    echo "$prompt: $picked (only option)"
+    return
+  fi
+  local PS3="$prompt (number): "
+  select picked in "$@"; do
+    [[ -n $picked ]] && return
+    echo "invalid choice" >&2
+  done
+  exit 1 # EOF
+}
+
+# Whole disks to offer, without the USB stick the installer booted from.
+installable_disks() {
+  local live
+  live=$(findmnt -no SOURCE /iso 2>/dev/null || true)
+  if [[ -n $live ]]; then
+    live=/dev/$(lsblk -no PKNAME "$live" | head -n1)
+    [[ $live == /dev/ ]] && live=$(findmnt -no SOURCE /iso)
+  fi
+  lsblk -dnpo NAME,TYPE | awk '$2 == "disk" { print $1 }' |
+    grep -v -e '^/dev/zram' -e "^${live:-none}\$" || true
+}
+
+mullvad_connected() { [[ $(mullvad status 2>/dev/null | head -n1) == Connected ]]; }
+
+# Network -> login -> lockdown + auto-connect -> connect.
+setup_mullvad() {
+  mullvad_connected && return
+
+  if ! interactive; then
+    echo "Mullvad is not connected and there is no terminal to set it up." >&2
+    echo "Run install-nixos interactively, or pass --no-vpn to install over the real IP." >&2
+    exit 1
+  fi
+
+  echo "==> Mullvad is not connected, setting it up"
+  until ip route show default | grep -q .; do
+    echo "No network. Opening nmtui: choose 'Activate a connection' and pick your network."
+    read -rp "Press Enter to continue (Ctrl-C to abort) "
+    nmtui || true
+  done
+
+  until mullvad account get 2>/dev/null | grep -q '^Mullvad account:'; do
+    mullvad account login || echo "login failed, try again" >&2
+  done
+
+  mullvad lockdown-mode set on
+  mullvad auto-connect set on
+  echo "==> Connecting"
+  mullvad connect --wait
+  if ! mullvad_connected; then
+    echo "Mullvad did not connect:" >&2
+    mullvad status >&2
+    exit 1
+  fi
+  mullvad status
 }
 
 vpn=1
@@ -24,24 +87,40 @@ if [[ ${1:-} == --no-vpn ]]; then
   vpn=0
   shift
 fi
-
-[[ $# -eq 2 ]] || usage
-host=$1
-disk=$2
+[[ $# -le 2 ]] || usage
+host=${1:-}
+disk=${2:-}
 
 [[ $EUID -eq 0 ]] || { echo "run as root (sudo -i)" >&2; exit 1; }
-[[ -b $disk ]] || { echo "$disk is not a block device" >&2; usage; }
 
-if [[ $vpn -eq 1 ]] && [[ $(mullvad status | head -n1) != Connected ]]; then
-  echo "Mullvad is not connected. Connect first:" >&2
-  echo "  mullvad account login && mullvad lockdown-mode set on && mullvad auto-connect set on && mullvad connect" >&2
-  echo "or pass --no-vpn to install over the real IP." >&2
+if [[ -z $host || -z $disk ]] && ! interactive; then
+  usage
+fi
+
+if [[ -z $host ]]; then
+  read -ra hosts <<<"$HOSTS"
+  pick "Host to install" "${hosts[@]}"
+  host=$picked
+fi
+if [[ " $HOSTS " != *" $host "* ]]; then
+  echo "unknown host '$host', available: $HOSTS" >&2
   exit 1
 fi
 
-if ! nix eval "$FLAKE#nixosConfigurations.$host.config.disko.devices.disk.main.type" >/dev/null; then
-  echo "host '$host' does not exist in $FLAKE or does not use disko" >&2
-  exit 1
+if [[ -z $disk ]]; then
+  mapfile -t disks < <(installable_disks)
+  [[ ${#disks[@]} -gt 0 ]] || { echo "no disks found" >&2; exit 1; }
+  labels=()
+  for d in "${disks[@]}"; do
+    labels+=("$d  $(lsblk -dno SIZE,MODEL "$d" | xargs)")
+  done
+  pick "Disk to ERASE and install onto" "${labels[@]}"
+  disk=${picked%% *}
+fi
+[[ -b $disk ]] || { echo "$disk is not a block device" >&2; usage; }
+
+if [[ $vpn -eq 1 ]]; then
+  setup_mullvad
 fi
 
 echo "==> Partitioning $disk (this ERASES it; disko will ask to confirm and for the LUKS passphrase)"

@@ -47,13 +47,20 @@ with subtest("Mullvad daemon runs, time sync is off"):
     machine.fail("systemctl is-active systemd-timesyncd.service")
     machine.succeed("systemctl is-active systemd-resolved.service")
 
-with subtest("install-nixos shows usage without arguments"):
-    out = machine.fail("install-nixos 2>&1")
+with subtest("install-nixos shows usage when it can't prompt"):
+    # The test has no terminal, so missing arguments can't be asked for.
+    out = machine.fail("install-nixos 2>&1 </dev/null")
     assert "usage: install-nixos" in out, out
+    assert "hosts: x16-disko" in out, out
     assert "nvme0n1" in out, out
 
+with subtest("install-nixos rejects hosts without a disko layout"):
+    out = machine.fail("install-nixos x16 /dev/nvme0n1 2>&1 </dev/null")
+    assert "unknown host 'x16'" in out, out
+
 with subtest("install-nixos refuses without Mullvad and leaves the disk alone"):
-    out = machine.fail("install-nixos x16-disko /dev/nvme0n1 2>&1")
+    # Without a terminal it can't run the Mullvad login flow, so it stops.
+    out = machine.fail("install-nixos x16-disko /dev/nvme0n1 2>&1 </dev/null")
     assert "Mullvad is not connected" in out, out
     machine.fail("test -e /dev/nvme0n1p1")
 

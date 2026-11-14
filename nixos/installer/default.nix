@@ -11,6 +11,11 @@
 }: let
   disko = inputs.disko.packages.${pkgs.stdenv.hostPlatform.system}.disko;
 
+  # Hosts install-nixos can install: those with a disko disk layout.
+  hosts = builtins.filter (
+    name: name != "installer" && inputs.self.nixosConfigurations.${name}.config ? disko
+  ) (builtins.attrNames inputs.self.nixosConfigurations);
+
   install-nixos = pkgs.writeShellApplication {
     name = "install-nixos";
     runtimeInputs = with pkgs; [
@@ -19,12 +24,18 @@
       nixos-install-tools
       util-linux
       coreutils
+      gawk
+      gnugrep
+      findutils
+      iproute2
       config.services.mullvad-vpn.package
+      config.networking.networkmanager.package
     ];
     runtimeEnv = {
       FLAKE = "/etc/nixos-config";
       # Commit the ISO was built from (dirty if built with uncommitted changes).
       FLAKE_REV = inputs.self.rev or inputs.self.dirtyRev or "unknown";
+      HOSTS = builtins.concatStringsSep " " hosts;
       USERNAME = username;
       REPO_URL = "https://github.com/xDarksome/config";
     };
