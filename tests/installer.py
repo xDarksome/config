@@ -121,7 +121,10 @@ installed = new_machine(with_iso=False, name="installed")
 installed.start()
 
 with subtest("installed system unlocks LUKS and boots"):
-    installed.wait_for_console_text("Passphrase for")
+    # The prompt ("Please enter passphrase for disk ...") ends without a
+    # newline and the driver matches whole lines, so also accept the
+    # password agent's log line, which comes once it's reading input.
+    installed.wait_for_console_text(r"passphrase for disk|Starting password query", timeout=900)
     installed.send_console(LUKS_PASSPHRASE + "\n")
     installed.wait_for_unit("multi-user.target")
     installed.succeed("test \"$(hostname)\" = installer-test")
