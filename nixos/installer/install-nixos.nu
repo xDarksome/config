@@ -87,7 +87,7 @@ def setup-mullvad [] {
   print "==> Mullvad is not connected, setting it up"
   while (^ip route show default | str trim | is-empty) {
     print "No network. Opening nmtui: choose 'Activate a connection' and pick your network."
-    input "Press Enter to continue (Ctrl-C to abort) "
+    try { input "Press Enter to continue (Ctrl-C to abort) " } catch { die "aborted" }
     try { ^nmtui }
   }
 

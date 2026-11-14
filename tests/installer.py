@@ -70,9 +70,12 @@ with subtest("install-nixos rejects hosts that aren't bundled"):
     machine.send_chars("clear; install-nixos x16 /dev/nvme0n1\n")
     machine.wait_until_tty_matches("1", r"unknown host 'x16', available: installer-test")
 
-with subtest("install-nixos asks for Mullvad by default; Ctrl-C aborts, disk untouched"):
+# The test VM has no internet, so the Mullvad setup stops at its first step,
+# the network prompt; the login itself can't be reached here.
+with subtest("install-nixos sets up Mullvad by default; Ctrl-C aborts, disk untouched"):
     machine.send_chars("clear; install-nixos installer-test /dev/nvme0n1\n")
-    machine.wait_until_tty_matches("1", r"Enter an account number")
+    machine.wait_until_tty_matches("1", r"No network\. Opening nmtui")
+    machine.wait_until_tty_matches("1", r"Press Enter to continue")
     machine.send_key("ctrl-c")
     machine.wait_until_tty_matches("1", r"aborted")
     machine.fail("test -e /dev/nvme0n1p1")
