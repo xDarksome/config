@@ -85,6 +85,22 @@ setup_mullvad() {
     mullvad account login || echo "login failed, try again" >&2
   done
 
+  # The package has no built-in relay list and a fresh daemon hasn't
+  # downloaded one yet; connecting before it has fails with "Failure to
+  # select a matching tunnel relay".
+  echo "==> Downloading the Mullvad relay list"
+  mullvad relay update >/dev/null
+  local relays=""
+  for _ in $(seq 120); do
+    relays=$(mullvad relay list 2>/dev/null || true)
+    [[ -n $relays ]] && break
+    sleep 1
+  done
+  if [[ -z $relays ]]; then
+    echo "The Mullvad relay list didn't download within 2 minutes; check the network and try again." >&2
+    exit 1
+  fi
+
   mullvad lockdown-mode set on
   mullvad auto-connect set on
   echo "==> Connecting"
@@ -165,6 +181,11 @@ if [[ $vpn -eq 1 ]]; then
   echo "==> Copying Mullvad login and settings"
   install -d -m 700 -o root -g root /mnt/etc/mullvad-vpn
   cp -p /etc/mullvad-vpn/settings.json /etc/mullvad-vpn/device.json /mnt/etc/mullvad-vpn/
+  # The relay list too, so the first connection doesn't wait for a download.
+  if [[ -f /var/cache/mullvad-vpn/relays.json ]]; then
+    install -d -m 755 /mnt/var/cache/mullvad-vpn
+    cp -p /var/cache/mullvad-vpn/relays.json /mnt/var/cache/mullvad-vpn/
+  fi
 fi
 
 echo "==> Set the password for $USERNAME"
