@@ -1,28 +1,39 @@
 # Install one of the hosts bundled on the ISO.
 #
+# A Nushell module: the live ISO auto-loads it, so `install-nixos` is a command
+# in the root shell (see ./default.nix).
+#
 # Missing host or disk are picked from a list. Unless --no-vpn is given and if
 # Mullvad isn't connected yet: connect the network (nmtui), log in to Mullvad,
 # download its relay list and connect with lockdown mode on. The install itself
 # is offline: each host's system and disk script are pre-built in
 # $HOSTS_DIR/<host>/{system,disko}.
 #
-# Environment (set by the ISO): FLAKE, FLAKE_REV, HOSTS_DIR, USERNAME, REPO_URL.
+# Settings (written by the ISO build next to this file, settings.json): flake,
+# flake_rev, hosts_dir, username, repo_url.
 
-def hosts [] {
-  ls $env.HOSTS_DIR | get name | path basename | sort
+const dir = path self .
+
+def settings [] {
+  open ($dir | path join settings.json)
 }
 
+def hosts [] {
+  ls (settings).hosts_dir | get name | path basename | sort
+}
+
+# Fail without closing the shell (exit would end the root shell).
 def die [message: string] {
-  print -e $message
-  exit 1
+  error make --unspanned {msg: $message}
 }
 
 def usage [] {
-  print -e "usage: install-nixos [--no-vpn] [host] [disk]"
-  print -e $"  hosts: (hosts | str join ' ')"
-  print -e "  disks:"
-  print -e (^lsblk -d -o NAME,SIZE,MODEL,TYPE)
-  exit 1
+  die ([
+    "usage: install-nixos [--no-vpn] [host] [disk]"
+    $"  hosts: (hosts | str join ' ')"
+    "  disks:"
+    (^lsblk -d -o NAME,SIZE,MODEL,TYPE)
+  ] | str join "\n")
 }
 
 def interactive [] {
@@ -81,7 +92,13 @@ def setup-mullvad [] {
   }
 
   while not (mullvad-logged-in) {
-    try { ^mullvad account login } catch { print -e "login failed, try again" }
+    # Ctrl-C reaches only the login prompt (an external command), not this
+    # loop: stop when the prompt was interrupted instead of asking again.
+    # Nushell reports a command killed by a signal with the negative signal
+    # number as its exit code; 130 is a shell's 128 + SIGINT.
+    let code = try { ^mullvad account login; 0 } catch {|e| $e.exit_code? | default 1 }
+    if $code < 0 or $code == 130 { die "aborted" }
+    if $code != 0 { print -e "login failed, try again (Ctrl-C to abort)" }
   }
 
   # The package has no built-in relay list and a fresh daemon hasn't
@@ -106,19 +123,18 @@ def setup-mullvad [] {
   # show only the final status below.
   try { ^mullvad connect --wait o> /dev/null }
   if not (mullvad-connected) {
-    print -e "Mullvad did not connect:"
-    print -e (^mullvad status | complete).stdout
-    exit 1
+    die $"Mullvad did not connect:\n((^mullvad status | complete).stdout)"
   }
   ^mullvad status
 }
 
-def main [
+export def main [
   host?: string # a host bundled on the ISO, e.g. x16-disko
   disk?: string # the whole disk to ERASE and install onto, e.g. /dev/nvme0n1
   --no-vpn # install without a Mullvad connection (network access uses the real IP)
 ] {
   if not (is-admin) { die "run as root (sudo -i)" }
+  let settings = settings
 
   if ($host == null or $disk == null) and not (interactive) { usage }
 
@@ -136,8 +152,7 @@ def main [
     $disk
   }
   if (^test -b $disk | complete).exit_code != 0 {
-    print -e $"($disk) is not a block device"
-    usage
+    die $"($disk) is not a block device"
   }
 
   if not $no_vpn { setup-mullvad }
@@ -145,27 +160,27 @@ def main [
   print $"==> Partitioning ($disk) \(this ERASES it; you'll be asked to confirm and for the LUKS passphrase\)"
   # The pre-built disk script targets /run/install-target.
   ^ln -sfn $disk /run/install-target
-  run-external $"($env.HOSTS_DIR)/($host)/disko/bin/disko-destroy-format-mount"
+  run-external $"($settings.hosts_dir)/($host)/disko/bin/disko-destroy-format-mount"
 
   print $"==> Installing ($host) \(offline, from the ISO\)"
-  # Resolve the link to the system's own store path: given a path inside
-  # $HOSTS_DIR, nix points the new system profile at the whole hosts directory,
+  # Resolve the link to the system's own store path: given a path inside the
+  # hosts directory, nix points the new system profile at the whole hosts directory,
   # which has no `activate`, and installing the bootloader fails.
-  let system = ^readlink -f $"($env.HOSTS_DIR)/($host)/system" | str trim
+  let system = ^readlink -f $"($settings.hosts_dir)/($host)/system" | str trim
   # Everything is in the ISO's store; with no substituters, nixos-install copies
   # it from there and never contacts a binary cache.
   ^nixos-install --system $system --no-root-passwd --no-channel-copy --option substituters ""
 
-  let home = $"/home/($env.USERNAME)"
+  let home = $"/home/($settings.username)"
   print $"==> Copying config to ($home)/nixos-config \(no network\)"
   # The ISO carries the flake source without .git history. Set up an empty repo
   # pointing at the remote; once a VPN is up, `git fetch` + `git reset` attaches
   # the history without touching the files.
   let target = $"/mnt($home)/nixos-config"
-  ^cp -r --no-preserve=mode $"($env.FLAKE)/." $target
+  ^cp -r --no-preserve=mode $"($settings.flake)/." $target
   ^git -C $target init -q
-  ^git -C $target remote add origin $env.REPO_URL
-  ^nixos-enter --root /mnt -c $"chown -R ($env.USERNAME):users ($home)/nixos-config"
+  ^git -C $target remote add origin $settings.repo_url
+  ^nixos-enter --root /mnt -c $"chown -R ($settings.username):users ($home)/nixos-config"
 
   if not $no_vpn {
     # Carry the login and settings (lockdown, auto-connect) over, so the new
@@ -181,10 +196,10 @@ def main [
     }
   }
 
-  print $"==> Set the password for ($env.USERNAME)"
+  print $"==> Set the password for ($settings.username)"
   mut password_set = false
   while not $password_set {
-    $password_set = try { ^nixos-enter --root /mnt -c $"passwd ($env.USERNAME)"; true } catch { false }
+    $password_set = try { ^nixos-enter --root /mnt -c $"passwd ($settings.username)"; true } catch { false }
   }
 
   print "==> Done. Reboot and remove the installer USB stick."
@@ -193,5 +208,5 @@ def main [
     print "    the new system now uses."
   }
   print "    Once the VPN is up, link the config to its git history:"
-  print $"    cd ~/nixos-config; git fetch origin; git reset ($env.FLAKE_REV)"
+  print $"    cd ~/nixos-config; git fetch origin; git reset ($settings.flake_rev)"
 }

@@ -50,7 +50,7 @@ with subtest("flake is bundled"):
     machine.succeed("test -f /etc/nixos-config/nixos/disko.nix")
 
 with subtest("tools are installed"):
-    for tool in ["install-nixos", "git", "mullvad", "nixos-install", "nmtui"]:
+    for tool in ["nu", "git", "mullvad", "nixos-install", "nmtui"]:
         machine.succeed(f"command -v {tool}")
 
 with subtest("Mullvad daemon runs, time sync is off"):
@@ -59,29 +59,26 @@ with subtest("Mullvad daemon runs, time sync is off"):
     machine.fail("systemctl is-active systemd-timesyncd.service")
     machine.succeed("systemctl is-active systemd-resolved.service")
 
-with subtest("install-nixos shows usage when it can't prompt"):
-    # Commands run without a terminal, so missing arguments can't be asked for.
-    out = machine.fail("install-nixos 2>&1 </dev/null")
-    assert "usage: install-nixos" in out, out
-    assert "hosts: installer-test" in out, out
-    assert "nvme0n1" in out, out
+# install-nixos is a Nushell command, auto-loaded in interactive shells, so the
+# rest is typed on tty1, where the ISO logs in as root into Nushell.
+with subtest("tty1 is a root Nushell with install-nixos"):
+    machine.wait_until_succeeds("pgrep -u root -t tty1 -x nu")
+    machine.send_chars("help install-nixos | print\n")
+    machine.wait_until_tty_matches("1", r"install-nixos \{flags\} \(host\) \(disk\)")
 
 with subtest("install-nixos rejects hosts that aren't bundled"):
-    out = machine.fail("install-nixos x16 /dev/nvme0n1 2>&1 </dev/null")
-    assert "unknown host 'x16'" in out, out
+    machine.send_chars("clear; install-nixos x16 /dev/nvme0n1\n")
+    machine.wait_until_tty_matches("1", r"unknown host 'x16', available: installer-test")
 
-with subtest("install-nixos refuses without Mullvad and leaves the disk alone"):
-    # Without a terminal it can't run the Mullvad login flow, so it stops.
-    out = machine.fail("install-nixos installer-test /dev/nvme0n1 2>&1 </dev/null")
-    assert "Mullvad is not connected" in out, out
+with subtest("install-nixos asks for Mullvad by default; Ctrl-C aborts, disk untouched"):
+    machine.send_chars("clear; install-nixos installer-test /dev/nvme0n1\n")
+    machine.wait_until_tty_matches("1", r"Enter an account number")
+    machine.send_key("ctrl-c")
+    machine.wait_until_tty_matches("1", r"aborted")
     machine.fail("test -e /dev/nvme0n1p1")
 
 with subtest("install offline through the prompts on tty1"):
-    # tty1 is logged in as the `nixos` user on the live ISO.
-    machine.wait_until_tty_matches("1", r"nixos@nixos")
-    machine.send_chars("sudo -i\n")
-    machine.wait_until_tty_matches("1", r"root@nixos")
-    machine.send_chars("install-nixos --no-vpn installer-test /dev/nvme0n1\n")
+    machine.send_chars("clear; install-nixos --no-vpn installer-test /dev/nvme0n1\n")
 
     machine.wait_until_tty_matches("1", r"Type 'yes' to continue")
     machine.send_chars("yes\n")

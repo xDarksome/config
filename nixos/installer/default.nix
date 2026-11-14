@@ -1,6 +1,6 @@
-# Live installer ISO. Boots a minimal NixOS with this flake at
-# /etc/nixos-config and an `install-nixos` command that partitions a disk and
-# installs one of the flake's hosts onto it. Everything the install needs (each
+# Live installer ISO. Boots a minimal NixOS into a root Nushell with this flake
+# at /etc/nixos-config and an `install-nixos` command that partitions a disk
+# and installs one of the flake's hosts onto it. Everything the install needs (each
 # host's system closure and disk script) is on the ISO, so it works offline.
 {
   config,
@@ -27,29 +27,41 @@
     ])
     cfg.hosts);
 
-  writeNuApp = import ../../lib/write-nu-app.nix {inherit pkgs lib;};
+  # Commands install-nixos runs. With no wrapper, they come from the system.
+  installTools = with pkgs; [
+    git
+    nixos-install-tools
+    util-linux
+    coreutils
+    iproute2
+    config.services.mullvad-vpn.package
+    config.networking.networkmanager.package
+  ];
 
-  install-nixos = writeNuApp {
-    name = "install-nixos";
-    file = ./install-nixos.nu;
-    runtimeInputs = with pkgs; [
-      git
-      nixos-install-tools
-      util-linux
-      coreutils
-      iproute2
-      config.services.mullvad-vpn.package
-      config.networking.networkmanager.package
-    ];
-    env = {
-      FLAKE = "/etc/nixos-config";
-      # Commit the ISO was built from (dirty if built with uncommitted changes).
-      FLAKE_REV = inputs.self.rev or inputs.self.dirtyRev or "unknown";
-      HOSTS_DIR = hostsDir;
-      USERNAME = username;
-      REPO_URL = "https://github.com/xDarksome/config";
-    };
-  };
+  # install-nixos as a Nushell module that every interactive shell auto-loads
+  # (from share/nushell/vendor/autoload of installed packages), with its
+  # settings next to it. Parse-checked at build time.
+  install-nixos =
+    pkgs.runCommand "install-nixos" {
+      nativeBuildInputs = [pkgs.nushell];
+      settings = builtins.toJSON {
+        flake = "/etc/nixos-config";
+        # Commit the ISO was built from (dirty if built with uncommitted changes).
+        flake_rev = inputs.self.rev or inputs.self.dirtyRev or "unknown";
+        hosts_dir = hostsDir;
+        inherit username;
+        repo_url = "https://github.com/xDarksome/config";
+      };
+      passAsFile = ["settings"];
+    } ''
+      module=$out/share/nushell/install-nixos
+      install -Dm644 ${./install-nixos.nu} $module/install-nixos.nu
+      install -Dm644 $settingsPath $module/settings.json
+      nu --no-config-file --commands "nu-check --debug --as-module '$module/install-nixos.nu'" >/dev/null
+
+      mkdir -p $out/share/nushell/vendor/autoload
+      echo "use $module/install-nixos.nu" > $out/share/nushell/vendor/autoload/install-nixos.nu
+    '';
 in {
   options.installer.hosts = lib.mkOption {
     type = lib.types.listOf lib.types.str;
@@ -71,12 +83,15 @@ in {
     # The flake source this ISO was built from.
     environment.etc."nixos-config".source = inputs.self;
 
-    environment.systemPackages = [
-      install-nixos
-      pkgs.git
-      # install-nixos is a Nushell script; also handy interactively.
-      pkgs.nushell
-    ];
+    environment.systemPackages = [install-nixos pkgs.nushell] ++ installTools;
+    # Link share/nushell into the system profile, where Nushell's vendor
+    # autoload finds install-nixos (via XDG_DATA_DIRS).
+    environment.pathsToLink = ["/share/nushell"];
+
+    # Log in as root on tty1, into Nushell, where install-nixos is a command.
+    services.getty.autologinUser = lib.mkForce "root";
+    users.defaultUserShell = pkgs.nushell;
+    environment.shells = [pkgs.nushell];
 
     # Route network access through Mullvad. Log in on the live system (see
     # install-nixos.sh); the account number is never baked into the ISO.
