@@ -161,9 +161,13 @@ ln -sfn "$disk" /run/install-target
 "$HOSTS_DIR/$host/disko/bin/disko-destroy-format-mount"
 
 echo "==> Installing $host (offline, from the ISO)"
+# Resolve the link to the system's own store path: given a path inside
+# $HOSTS_DIR, nix points the new system profile at the whole hosts directory,
+# which has no `activate`, and installing the bootloader fails.
+system=$(readlink -f "$HOSTS_DIR/$host/system")
 # Everything is in the ISO's store; with no substituters, nixos-install copies
 # it from there and never contacts a binary cache.
-nixos-install --system "$HOSTS_DIR/$host/system" --no-root-passwd --no-channel-copy \
+nixos-install --system "$system" --no-root-passwd --no-channel-copy \
   --option substituters ""
 
 echo "==> Copying config to /home/$USERNAME/nixos-config (no network)"
