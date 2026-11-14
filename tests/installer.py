@@ -96,7 +96,8 @@ with subtest("install offline through the prompts on tty1"):
 with subtest("installed system has the config and no Mullvad login"):
     home = f"/mnt/home/{USERNAME}"
     machine.succeed(f"test -f {home}/nixos-config/flake.nix")
-    machine.succeed(f"git -C {home}/nixos-config remote get-url origin | grep -q github.com")
+    # As root, git refuses a repo owned by the user unless it's marked safe.
+    machine.succeed(f"git -c safe.directory='*' -C {home}/nixos-config remote get-url origin | grep -q github.com")
     machine.succeed(f"test \"$(stat -c %U {home}/nixos-config)\" = {USERNAME}")
     # --no-vpn: nothing to copy.
     machine.fail("test -e /mnt/etc/mullvad-vpn")
