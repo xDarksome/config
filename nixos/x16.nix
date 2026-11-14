@@ -86,10 +86,50 @@
   };
   systemd.services.navidrome.serviceConfig.ProtectHome = lib.mkForce false;
 
+  services.memos.enable = true;
+
+  services.tor = {
+    # enable = true;
+    # settings = {
+    #   HiddenServiceDir = "/var/lib/tor/test-service/";
+        #   HiddenServicePort = "3000 127.0.0.1:3000";
+    # };
+    
+    relay.onionServices.test = {
+      path = "/var/lib/tor/test-service/";
+      map = [3000];
+    };
+  };
+
+  systemd.user.services."stalker" = {
+    after = ["network.target"];
+    wantedBy = ["default.target"];
+    serviceConfig = {
+      ExecStart = "/home/${username}/.cargo/bin/stalker-bin";
+      LimitNOFILE = 65536;
+    };
+    environment = {
+      RUST_LOG = "info,sqlx=error";
+      DATA_DIR = "/home/${username}/stalker-data";
+    };
+  };
+
   services.xserver.videoDrivers = ["intel"];
 
   environment.systemPackages = with pkgs; [
     asusctl
+
+    mullvad-vpn
+    tor-browser
+
+    mullvad-browser
+
+    electrum
+
+    qmk
+
+    restic
+    rclone
   ];
 
   # The state versions are required and should stay at the version you

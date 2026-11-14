@@ -21,6 +21,10 @@
 
   networking.hostName = "pc";
 
+  programs.steam.enable = true;
+  # Steam's client is an X11 app; ./cosmic/mod.nix turns XWayland off.
+  services.desktopManager.cosmic.xwayland.enable = lib.mkForce true;
+
   # Required; keep it at the release the machine was first installed with.
   # (home-manager's state version comes from home-manager/core.nix.)
   system.stateVersion = "26.11";
