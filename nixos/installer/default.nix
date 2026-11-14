@@ -27,21 +27,21 @@
     ])
     cfg.hosts);
 
-  install-nixos = pkgs.writeShellApplication {
+  writeNuApp = import ../../lib/write-nu-app.nix {inherit pkgs lib;};
+
+  install-nixos = writeNuApp {
     name = "install-nixos";
+    file = ./install-nixos.nu;
     runtimeInputs = with pkgs; [
       git
       nixos-install-tools
       util-linux
       coreutils
-      gawk
-      gnugrep
-      findutils
       iproute2
       config.services.mullvad-vpn.package
       config.networking.networkmanager.package
     ];
-    runtimeEnv = {
+    env = {
       FLAKE = "/etc/nixos-config";
       # Commit the ISO was built from (dirty if built with uncommitted changes).
       FLAKE_REV = inputs.self.rev or inputs.self.dirtyRev or "unknown";
@@ -49,7 +49,6 @@
       USERNAME = username;
       REPO_URL = "https://github.com/xDarksome/config";
     };
-    text = builtins.readFile ./install-nixos.sh;
   };
 in {
   options.installer.hosts = lib.mkOption {
@@ -75,6 +74,8 @@ in {
     environment.systemPackages = [
       install-nixos
       pkgs.git
+      # install-nixos is a Nushell script; also handy interactively.
+      pkgs.nushell
     ];
 
     # Route network access through Mullvad. Log in on the live system (see

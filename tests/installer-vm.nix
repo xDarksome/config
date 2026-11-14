@@ -11,13 +11,13 @@
   pkgs,
   iso,
 }:
-pkgs.writeShellApplication {
+import ../lib/write-nu-app.nix {inherit pkgs; inherit (pkgs) lib;} {
   name = "installer-vm";
+  file = ./installer-vm.nu;
   runtimeInputs = [pkgs.qemu_kvm pkgs.coreutils];
-  runtimeEnv = {
+  env = {
     ISO_DIR = iso;
     OVMF_CODE = pkgs.OVMF.firmware;
     OVMF_VARS = pkgs.OVMF.variables;
   };
-  text = builtins.readFile ./installer-vm.sh;
 }
