@@ -3,8 +3,7 @@ export use bootstrap.nu
 
 export use backup.nu 
 
-export use installer-usb.nu
-export use installer-vm.nu
+export use install-nixos.nu
 
 export use create-log-entry.nu 
 
