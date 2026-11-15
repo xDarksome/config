@@ -60,7 +60,8 @@
   services = {
     mullvad-vpn = {
       enable = true;
-      package = pkgs.mullvad-vpn;
+      # The desktop app; the daemon and CLI come from the default package.
+      gui.enable = true;
       # Block traffic from early boot until the daemon has applied its own
       # firewall, so nothing leaves on the real IP before the tunnel is up.
       enableEarlyBootBlocking = true;

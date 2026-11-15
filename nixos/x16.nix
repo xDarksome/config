@@ -119,7 +119,6 @@
   environment.systemPackages = with pkgs; [
     asusctl
 
-    mullvad-vpn
     tor-browser
 
     mullvad-browser
