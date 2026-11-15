@@ -6,7 +6,7 @@
 # and boots the installed disk, unlocking LUKS. It installs the small
 # `installer-test` host instead of x16, which is too big to install under
 # emulation; the Mullvad login flow needs a real account, so try that with
-# `install-nixos vm` (home-manager/nushell/command/install-nixos.nu).
+# `make-nixos-installer vm` (home-manager/nushell/command).
 {
   pkgs,
   installer,

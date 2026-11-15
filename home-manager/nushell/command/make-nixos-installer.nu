@@ -1,9 +1,9 @@
-# install-nixos: get the installer ISO onto a USB stick or into a VM.
+# make-nixos-installer: get the installer ISO onto a USB stick or into a VM.
 #
-#   install-nixos usb /dev/sdX   write the ISO to a USB stick
-#   install-nixos vm             try the ISO in a VM (disk attached)
-#   install-nixos vm disk        boot the VM's installed disk
-#   install-nixos vm reset       delete the VM disk and EFI variables
+#   make-nixos-installer usb /dev/sdX   write the ISO to a USB stick
+#   make-nixos-installer vm             try the ISO in a VM (disk attached)
+#   make-nixos-installer vm disk        boot the VM's installed disk
+#   make-nixos-installer vm reset       delete the VM disk and EFI variables
 #
 # Both build the ISO from the config checkout first. (The ISO's own
 # install-nixos, which installs a host, is nixos/installer/install-nixos.nu.)
@@ -39,10 +39,10 @@ def --wrapped root [...command] {
 # Write the installer ISO to a USB stick, or try it in a VM
 export def main [] {
   print "Usage:
-  install-nixos usb <device> [--force]   write the ISO to a USB stick
-  install-nixos vm [iso|disk|reset]      try the ISO in a VM
+  make-nixos-installer usb <device> [--force]   write the ISO to a USB stick
+  make-nixos-installer vm [iso|disk|reset]      try the ISO in a VM
 
-Details: help install-nixos usb, help install-nixos vm"
+Details: help make-nixos-installer usb, help make-nixos-installer vm"
 }
 
 # Write the installer ISO to a USB stick (builds the ISO first)
@@ -139,7 +139,7 @@ export def vm [
     return
   }
   if $mode not-in ["iso" "disk"] {
-    die "usage: install-nixos vm [iso|disk|reset]"
+    die "usage: make-nixos-installer vm [iso|disk|reset]"
   }
 
   print "==> Fetching QEMU and the UEFI firmware"
