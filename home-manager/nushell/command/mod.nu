@@ -3,6 +3,9 @@ export use bootstrap.nu
 
 export use backup.nu 
 
+export use installer-usb.nu
+export use installer-vm.nu
+
 export use create-log-entry.nu 
 
 export use save-meme.nu 

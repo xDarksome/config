@@ -91,9 +91,6 @@
         inherit pkgs username;
         inherit (self.nixosConfigurations) installer;
       };
-
-      # Parse-checks the dev shell's Nushell commands.
-      dev-commands = self.devShells.${system}.default.commands;
     };
 
     homeConfigurations = {
@@ -110,8 +107,10 @@
     
     formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
 
-    # nix develop: the installer-usb and installer-vm Nushell commands.
-    devShells.${system}.default = import ./dev-shell.nix {inherit pkgs;};
-
+    devShells.x86_64-linux.default = pkgs.mkShell {
+      buildInputs = with pkgs; [
+        pmbootstrap
+      ];
+    };
   };
 }

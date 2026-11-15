@@ -1,5 +1,4 @@
 # installer-usb /dev/sdX: write the installer ISO to a USB stick.
-# A Nushell command in the dev shell (nix develop).
 #
 # The ISO is a hybrid image: it carries its own partition table and
 # filesystems, laid out the way the NixOS boot setup expects. So the stick is
@@ -7,8 +6,8 @@
 # that, any old partitions are unmounted and their signatures wiped, and
 # afterwards the stick is read back and compared with the ISO.
 
-# The checkout to work on; the dev shell sets $env.CONFIG_FLAKE to it.
-def flake [] { $env.CONFIG_FLAKE? | default $env.PWD }
+# The config checkout (config.nu sets $env.CONFIG_DIR).
+def flake [] { $env.CONFIG_DIR? | default ($env.HOME | path join nixos-config) }
 
 def die [message: string] {
   error make --unspanned {msg: $message}
