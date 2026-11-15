@@ -7,8 +7,6 @@
 
     ./sway
     ./wezterm
-
-    ./sway
   ];
 
   home.packages = with pkgs; [

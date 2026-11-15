@@ -22,11 +22,19 @@
     wget
     zip
     unzip
+    libargon2
     wl-clipboard
 
+    age
     gnupg
     gpg-tui
     pinentry-curses
+
+    sops
+
+    (python3.withPackages (ps: [
+      ps.bech32
+    ]))
 
     dua
 
