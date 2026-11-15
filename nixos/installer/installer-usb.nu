@@ -7,7 +7,8 @@
 # that, any old partitions are unmounted and their signatures wiped, and
 # afterwards the stick is read back and compared with the ISO.
 
-const flake = path self ../..
+# The checkout to work on; the dev shell sets $env.CONFIG_FLAKE to it.
+def flake [] { $env.CONFIG_FLAKE? | default $env.PWD }
 
 def die [message: string] {
   error make --unspanned {msg: $message}
@@ -54,7 +55,7 @@ export def main [
   }
 
   print "==> Building the ISO"
-  let iso_dir = ^nix build $"($flake)#installer-iso" --no-link --print-out-paths | str trim
+  let iso_dir = ^nix build $"(flake)#installer-iso" --no-link --print-out-paths | str trim
   let iso = glob $"($iso_dir)/iso/*.iso" | first
 
   let iso_size = ls $iso | get size.0 | into int

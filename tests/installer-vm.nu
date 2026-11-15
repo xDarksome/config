@@ -11,13 +11,14 @@
 # SSH into the VM: ssh -p 2222 root@localhost (live ISO, your key)
 # State lives in $env.INSTALLER_VM_DIR (default: .installer-vm in the repo).
 
-const flake = path self ..
+# The checkout to work on; the dev shell sets $env.CONFIG_FLAKE to it.
+def flake [] { $env.CONFIG_FLAKE? | default $env.PWD }
 
 # Try the installer ISO in a VM
 export def main [
   mode: string = "iso" # iso: boot the ISO, disk: boot the installed disk, reset: delete the VM's state
 ] {
-  let dir = $env.INSTALLER_VM_DIR? | default ($flake | path join .installer-vm)
+  let dir = $env.INSTALLER_VM_DIR? | default (flake | path join .installer-vm)
 
   if $mode == "reset" {
     rm -rf $dir
@@ -45,7 +46,7 @@ export def main [
 
   let cdrom = if $mode == "iso" {
     print "==> Building the ISO"
-    let iso_dir = ^nix build $"($flake)#installer-iso" --no-link --print-out-paths | str trim
+    let iso_dir = ^nix build $"(flake)#installer-iso" --no-link --print-out-paths | str trim
     let iso = glob $"($iso_dir)/iso/*.iso" | first
     [-drive $"media=cdrom,readonly=on,file=($iso)" -boot order=d]
   } else {

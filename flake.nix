@@ -92,13 +92,8 @@
         inherit (self.nixosConfigurations) installer;
       };
 
-      # Parse-check the dev shell's Nushell commands.
-      nu-scripts = pkgs.runCommand "nu-scripts" {nativeBuildInputs = [pkgs.nushell];} ''
-        for f in ${./nixos/installer/installer-usb.nu} ${./tests/installer-vm.nu}; do
-          nu --no-config-file --commands "nu-check --debug --as-module '$f'" >/dev/null
-        done
-        touch $out
-      '';
+      # Parse-checks the dev shell's Nushell commands.
+      dev-commands = self.devShells.${system}.default.commands;
     };
 
     homeConfigurations = {
@@ -115,7 +110,7 @@
     
     formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
 
-    # nix develop: a Nushell with the installer-usb and installer-vm commands.
+    # nix develop: the installer-usb and installer-vm Nushell commands.
     devShells.${system}.default = import ./dev-shell.nix {inherit pkgs;};
 
   };
