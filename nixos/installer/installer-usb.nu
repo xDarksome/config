@@ -1,34 +1,32 @@
-# Write the installer ISO to a USB stick: nix run .#installer-usb -- /dev/sdX
+# installer-usb /dev/sdX: write the installer ISO to a USB stick.
+# A Nushell command in the dev shell (nix develop).
 #
 # The ISO is a hybrid image: it carries its own partition table and
 # filesystems, laid out the way the NixOS boot setup expects. So the stick is
 # partitioned and formatted by writing the image to the whole device; before
 # that, any old partitions are unmounted and their signatures wiped, and
 # afterwards the stick is read back and compared with the ISO.
-#
-# Environment (set at the top of the script): ISO_DIR.
+
+const flake = path self ../..
 
 def die [message: string] {
-  print -e $message
-  exit 1
+  error make --unspanned {msg: $message}
 }
 
 def mib [bytes: int] {
   $bytes // 1024 // 1024
 }
 
-def main [
+# Runs a command as root: directly when already root, otherwise with sudo.
+def --wrapped root [...command] {
+  if (is-admin) { run-external ...$command } else { ^sudo ...$command }
+}
+
+# Write the installer ISO to a USB stick (builds the ISO first)
+export def main [
   device: string # the whole disk to write to, e.g. /dev/sdb
   --force # allow a disk that isn't USB or removable (or a loop device)
 ] {
-  if not (is-admin) {
-    print $"Writing to ($device) needs root, re-running with sudo"
-    let flags = if $force { ["--force"] } else { [] }
-    exec sudo $env.CURRENT_FILE ...$flags $device
-  }
-
-  let iso = glob $"($env.ISO_DIR)/iso/*.iso" | first
-
   if (^test -b $device | complete).exit_code != 0 {
     print -e (^lsblk -d -o NAME,SIZE,TRAN,RM,MODEL,TYPE)
     die $"($device) is not a block device"
@@ -55,6 +53,10 @@ def main [
     die $"($dev) is not a USB or removable disk \(transport: ($info.tran? | default 'none')\); pass --force if you're sure"
   }
 
+  print "==> Building the ISO"
+  let iso_dir = ^nix build $"($flake)#installer-iso" --no-link --print-out-paths | str trim
+  let iso = glob $"($iso_dir)/iso/*.iso" | first
+
   let iso_size = ls $iso | get size.0 | into int
   let dev_size = $info.size | into int
   if $dev_size < $iso_size {
@@ -71,20 +73,20 @@ def main [
   print $"==> Unmounting and wiping ($dev)"
   for part in (^lsblk -lnpo NAME $dev | lines | skip 1) {
     if (^findmnt -rno TARGET -S $part | complete).exit_code == 0 {
-      ^umount $part
+      root umount $part
     }
-    try { ^wipefs --all --quiet $part }
+    try { root wipefs --all --quiet $part }
   }
-  ^wipefs --all --quiet $dev
+  root wipefs --all --quiet $dev
 
   print "==> Writing the ISO"
-  ^dd $"if=($iso)" $"of=($dev)" bs=4M conv=fsync oflag=direct status=progress
+  root dd $"if=($iso)" $"of=($dev)" bs=4M conv=fsync oflag=direct status=progress
   ^sync
   # Let the kernel see the image's partitions (some devices can't, harmless).
-  try { ^blockdev --rereadpt $dev e> /dev/null }
+  try { root blockdev --rereadpt $dev e> /dev/null }
 
   print "==> Verifying"
-  if (^cmp -n $iso_size $iso $dev | complete).exit_code != 0 {
+  if (root cmp -n $iso_size $iso $dev | complete).exit_code != 0 {
     die $"verification failed: ($dev) differs from the ISO"
   }
 

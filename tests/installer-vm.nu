@@ -1,10 +1,23 @@
-# Interactive VM for trying the installer ISO by hand. See installer-vm.nix.
-# Environment (set at the top of the script): ISO_DIR, OVMF_CODE, OVMF_VARS.
+# installer-vm: try the installer ISO by hand in a VM. A Nushell command in
+# the dev shell (nix develop), which provides QEMU and $env.OVMF_CODE /
+# $env.OVMF_VARS.
+#
+#   installer-vm          boot the ISO (disk attached); builds the ISO first
+#   installer-vm disk     boot the installed disk
+#   installer-vm reset    delete the VM disk and EFI variables
+#
+# The disk is NVMe, so it shows up as /dev/nvme0n1 like on the laptop, and the
+# x16 initrd (which has no virtio drivers) can find it.
+# SSH into the VM: ssh -p 2222 root@localhost (live ISO, your key)
+# State lives in $env.INSTALLER_VM_DIR (default: .installer-vm in the repo).
 
-def main [
+const flake = path self ..
+
+# Try the installer ISO in a VM
+export def main [
   mode: string = "iso" # iso: boot the ISO, disk: boot the installed disk, reset: delete the VM's state
 ] {
-  let dir = $env.INSTALLER_VM_DIR? | default ".installer-vm"
+  let dir = $env.INSTALLER_VM_DIR? | default ($flake | path join .installer-vm)
 
   if $mode == "reset" {
     rm -rf $dir
@@ -12,8 +25,7 @@ def main [
     return
   }
   if $mode not-in ["iso" "disk"] {
-    print -e "usage: installer-vm [iso|disk|reset]"
-    exit 1
+    error make --unspanned {msg: "usage: installer-vm [iso|disk|reset]"}
   }
 
   mkdir $dir
@@ -32,13 +44,15 @@ def main [
   }
 
   let cdrom = if $mode == "iso" {
-    let iso = glob $"($env.ISO_DIR)/iso/*.iso" | first
+    print "==> Building the ISO"
+    let iso_dir = ^nix build $"($flake)#installer-iso" --no-link --print-out-paths | str trim
+    let iso = glob $"($iso_dir)/iso/*.iso" | first
     [-drive $"media=cdrom,readonly=on,file=($iso)" -boot order=d]
   } else {
     []
   }
 
-  (exec qemu-system-x86_64
+  (^qemu-system-x86_64
     -machine q35 ...$accel -smp 4 -m 8G
     -drive $"if=pflash,format=raw,unit=0,readonly=on,file=($env.OVMF_CODE)"
     -drive $"if=pflash,format=raw,unit=1,file=($vars)"

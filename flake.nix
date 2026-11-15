@@ -83,24 +83,22 @@
     packages.${system} = {
       # nix build .#installer-iso
       installer-iso = self.nixosConfigurations.installer.config.system.build.isoImage;
-
-      # Write the ISO to a USB stick: nix run .#installer-usb -- /dev/sdX
-      installer-usb = import ./nixos/installer/installer-usb.nix {
-        inherit pkgs;
-        iso = self.packages.${system}.installer-iso;
-      };
-
-      # Try the ISO by hand in a VM: nix run .#installer-vm
-      installer-vm = import ./tests/installer-vm.nix {
-        inherit pkgs;
-        iso = self.packages.${system}.installer-iso;
-      };
     };
 
     # Boot the ISO in a VM, install a test host and boot it: nix flake check
-    checks.${system}.installer = import ./tests/installer.nix {
-      inherit pkgs username;
-      inherit (self.nixosConfigurations) installer;
+    checks.${system} = {
+      installer = import ./tests/installer.nix {
+        inherit pkgs username;
+        inherit (self.nixosConfigurations) installer;
+      };
+
+      # Parse-check the dev shell's Nushell commands.
+      nu-scripts = pkgs.runCommand "nu-scripts" {nativeBuildInputs = [pkgs.nushell];} ''
+        for f in ${./nixos/installer/installer-usb.nu} ${./tests/installer-vm.nu}; do
+          nu --no-config-file --commands "nu-check --debug --as-module '$f'" >/dev/null
+        done
+        touch $out
+      '';
     };
 
     homeConfigurations = {
@@ -117,10 +115,8 @@
     
     formatter.x86_64-linux = nixpkgs.legacyPackages.x86_64-linux.alejandra;
 
-    devShells.x86_64-linux.default = pkgs.mkShell {
-      buildInputs = with pkgs; [
-        pmbootstrap
-      ];
-    };
+    # nix develop: a Nushell with the installer-usb and installer-vm commands.
+    devShells.${system}.default = import ./dev-shell.nix {inherit pkgs;};
+
   };
 }
