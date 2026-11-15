@@ -1,3 +1,8 @@
+export use derive-secret.nu 
+export use bootstrap.nu 
+
+export use backup.nu 
+
 export use create-log-entry.nu 
 
 export use save-meme.nu 

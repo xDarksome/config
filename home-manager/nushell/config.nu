@@ -523,6 +523,15 @@ use event_store_fs.nu
 use view_fs.nu
 use view_memos.nu
 
+$env.CONFIG_DIR = [$env.HOME nixos-config] | path join
+$env.CONFIG_SECRETS_FILE = [$env.CONFIG_DIR secrets.sops.yaml] | path join
+$env.SECRETS_DIR = [$env.HOME secrets] | path join
+
+$env.RESTIC_PASSWORD_FILE = [$env.SECRETS_DIR 'restic-password'] | path join
+$env.SOPS_AGE_KEY_FILE = [$env.SECRETS_DIR 'sops-age-identity'] | path join
+
+$env.DATA_DIR = [$env.HOME sync] | path join
+
 # Non-sensitive. Memos instance is localhost only.
 $env.MEMOS_TOKEN = 'memos_pat_5ovGqvEj7w1JAJLWSaH338yrXTJNTCTX'
 

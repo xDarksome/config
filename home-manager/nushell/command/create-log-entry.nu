@@ -37,9 +37,20 @@ export def main [
     return
   }
 
+  let content_files = $content_files
+  | default []
+  | each {|p|
+    if ($p | path type) == 'dir' {
+      glob ($p | path expand | path join '**' '*') --no-dir
+    } else {
+      [$p]
+    }
+  }
+  | flatten
+
   let content = $content_files
     | each {|path| 
-      let ext = ($path | split row '.' | get 1)
+      let ext = ($path | path parse | get extension)
       let type = content type from-file-ext $ext
       let bytes = open --raw $path | collect | into binary
       content new $bytes $type
