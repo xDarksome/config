@@ -36,7 +36,35 @@ hl.config({
     misc = {
         force_default_wallpaper = 0,
         disable_hyprland_logo   = true,
+
+        -- Variable refresh rate for fullscreen windows (2); always on (1) can
+        -- flicker on the desktop with some monitors.
+        vrr = 2,
     },
+})
+
+-- Gaming latency
+hl.config({
+    general = {
+        -- Lets windows with the `immediate` rule below skip vsync and present
+        -- frames as soon as they're ready (tearing only above the refresh rate
+        -- when VRR is on).
+        allow_tearing = true,
+    },
+    render = {
+        -- Fullscreen windows go straight to the display, skipping composition.
+        direct_scanout = 1,
+    },
+    cursor = {
+        -- Moving the cursor doesn't knock a fullscreen game out of VRR.
+        no_break_fs_vrr = 1,
+    },
+})
+
+-- Steam games (native and Proton) are steam_app_<id>.
+hl.window_rule({
+    match     = { class = "^steam_app_.*$" },
+    immediate = true,
 })
 
 -- Apps

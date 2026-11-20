@@ -24,6 +24,15 @@
 
   programs.steam.enable = true;
 
+  # Per game, set Steam's launch options to `gamemoderun %command%`. While a
+  # game runs, GameMode switches the CPU to its performance governor, raises
+  # the game's priority, and pins it to the CCD with the 3D V-Cache (found from
+  # the L3 sizes; pin_cores is on by default).
+  programs.gamemode = {
+    enable = true;
+    settings.general.renice = 10;
+  };
+
   # Hyprland as a second session next to COSMIC (pick it in the login screen).
   # Its config and shortcuts are in home-manager/hyprland.
   programs.hyprland.enable = true;
