@@ -3,6 +3,7 @@
 {
   config,
   lib,
+  username,
   ...
 }: {
   imports = [
@@ -22,6 +23,13 @@
   networking.hostName = "pc";
 
   programs.steam.enable = true;
+
+  # Hyprland as a second session next to COSMIC (pick it in the login screen).
+  # Its config and shortcuts are in home-manager/hyprland.
+  programs.hyprland.enable = true;
+  # Super+L; the NixOS module also sets up its PAM service.
+  programs.hyprlock.enable = true;
+  home-manager.users.${username}.imports = [../home-manager/hyprland];
   # Steam's client is an X11 app; ./cosmic/mod.nix turns XWayland off.
   services.desktopManager.cosmic.xwayland.enable = lib.mkForce true;
 
