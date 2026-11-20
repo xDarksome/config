@@ -30,10 +30,22 @@ hl.config({
         repeat_delay = 350,
         repeat_rate  = 25,
 
-        accel_profile = "adaptive",
-        sensitivity   = -0.1,
+        -- No mouse acceleration: pointer speed follows the mouse 1:1.
+        accel_profile = "flat",
+        sensitivity   = 0,
     },
 })
+
+-- The 4K monitor is scaled 2x, so the desktop is 1920x1080 in logical
+-- pixels. XWayland apps (most Proton games) would see that size and be
+-- upscaled; render them at the native resolution instead. That makes the
+-- X11 Steam client tiny, so scale its UI back up itself.
+hl.config({
+    xwayland = {
+        force_zero_scaling = true,
+    },
+})
+hl.env("STEAM_FORCE_DESKTOPUI_SCALING", "2")
 
 hl.config({
     general = {
