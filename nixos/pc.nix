@@ -39,6 +39,19 @@
   # Super+L; the NixOS module also sets up its PAM service.
   programs.hyprlock.enable = true;
   home-manager.users.${username}.imports = [../home-manager/hyprland];
+
+  # The monitor is on the motherboard's USB-C port, which belongs to the CPU's
+  # built-in GPU. Render on the RX 9070 XT anyway (as COSMIC does) and use the
+  # built-in GPU only to scan out: Hyprland renders on the first device in
+  # AQ_DRM_DEVICES, and games pick the compositor's main GPU. The list is
+  # colon-separated, so the by-path names (which contain colons) can't be used;
+  # these rules add colon-free names, matched by PCI device ID
+  # (check with `lspci -nn`: 1002:7550 is the RX 9070 XT, 1002:13c0 the iGPU).
+  services.udev.extraRules = ''
+    SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x7550", SYMLINK+="dri/dgpu"
+    SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x13c0", SYMLINK+="dri/igpu"
+  '';
+  environment.sessionVariables.AQ_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
   # Steam's client is an X11 app; ./cosmic/mod.nix turns XWayland off.
   services.desktopManager.cosmic.xwayland.enable = lib.mkForce true;
 
