@@ -3,6 +3,9 @@ export use bootstrap.nu
 
 export use backup.nu 
 
+export use make-nixos-installer.nu
+export use link-config.nu
+
 export use create-log-entry.nu 
 
 export use save-meme.nu 
