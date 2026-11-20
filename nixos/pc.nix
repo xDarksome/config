@@ -51,7 +51,13 @@
     SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x7550", SYMLINK+="dri/dgpu"
     SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x13c0", SYMLINK+="dri/igpu"
   '';
-  environment.sessionVariables.AQ_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
+  environment.sessionVariables = {
+    AQ_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
+    # Apps pick their GPU separately from the compositor, and without this they
+    # landed on the iGPU. Mesa's OpenGL and Vulkan device selection (and so
+    # Proton/DXVK) take the RX 9070 XT as the default GPU by vendor:device ID.
+    DRI_PRIME = "1002:7550";
+  };
   # Steam's client is an X11 app; ./cosmic/mod.nix turns XWayland off.
   services.desktopManager.cosmic.xwayland.enable = lib.mkForce true;
 
