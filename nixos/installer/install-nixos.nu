@@ -175,7 +175,7 @@ export def main [
   print $"==> Copying config to ($home)/nixos-config \(no network\)"
   # The ISO carries the flake source without .git history. Set up an empty repo
   # pointing at the remote and record the commit it was built from; once the
-  # VPN is up, link-nixos-config attaches the history without touching the files.
+  # VPN is up, link-config attaches the history without touching the files.
   let target = $"/mnt($home)/nixos-config"
   ^cp -r --no-preserve=mode $"($settings.flake)/." $target
   ^git -C $target init -q
@@ -208,5 +208,5 @@ export def main [
     print "    Don't run 'mullvad account logout' here: it would revoke the device"
     print "    the new system now uses."
   }
-  print "    Once the VPN is up, link the config to its git history: link-nixos-config"
+  print "    Once the VPN is up, link the config to its git history: link-config"
 }

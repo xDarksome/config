@@ -1,4 +1,4 @@
-# link-nixos-config: attach the config checkout to its git history on GitHub.
+# link-config: attach the config checkout to its git history on GitHub.
 #
 # install-nixos copies the config to ~/nixos-config without history (the ISO
 # has no network): an empty repo with `origin` set, and the commit the ISO was
