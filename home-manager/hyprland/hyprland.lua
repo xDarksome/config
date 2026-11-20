@@ -10,9 +10,12 @@ local launcher = "fuzzel"
 local lock = "hyprlock"
 local screenshot = 'grim -g "$(slurp)" - | wl-copy'
 
+-- Every monitor at its highest refresh rate. Among modes with that rate it
+-- takes the highest resolution, so a monitor that only reaches its top rate
+-- at a lower resolution runs at that resolution.
 hl.monitor({
     output   = "",
-    mode     = "preferred",
+    mode     = "highrr",
     position = "auto",
     scale    = "auto",
 })
@@ -29,6 +32,16 @@ hl.config({
 
         accel_profile = "adaptive",
         sensitivity   = -0.1,
+    },
+})
+
+hl.config({
+    general = {
+        gaps_in  = 0,
+        gaps_out = 0,
+    },
+    animations = {
+        enabled = false,
     },
 })
 
