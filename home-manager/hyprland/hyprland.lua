@@ -77,8 +77,10 @@ hl.config({
         allow_tearing = true,
     },
     render = {
-        -- Fullscreen windows go straight to the display, skipping composition.
-        direct_scanout = 1,
+        -- Off: the monitor hangs off the iGPU's USB-C while games render on
+        -- the RX 9070 XT, and scanning their frames out directly across the
+        -- two GPUs capped fullscreen games at ~60 FPS.
+        direct_scanout = 0,
     },
     cursor = {
         -- Moving the cursor doesn't knock a fullscreen game out of VRR.
