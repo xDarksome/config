@@ -3,8 +3,27 @@
 {
   config,
   lib,
+  username,
   ...
-}: {
+}: let
+  # Sway's pc-only output and gaming settings (merged into home-manager/sway).
+  swayGaming = {
+    output."*" = {
+      # VRR. Sway has no fullscreen-only mode: it's on for the desktop too,
+      # which can flicker on some monitors.
+      adaptive_sync = "on";
+      # Let fullscreen games skip vsync (only those allowed below).
+      allow_tearing = "yes";
+    };
+    # Steam games (native and Proton) are steam_app_<id>.
+    window.commands = [
+      {
+        criteria.class = "^steam_app_";
+        command = "allow_tearing yes";
+      }
+    ];
+  };
+in {
   imports = [
     ./desktop.nix
   ];
@@ -22,6 +41,57 @@
   networking.hostName = "pc";
 
   programs.steam.enable = true;
+
+  # Per game, set Steam's launch options to `gamemoderun %command%`. While a
+  # game runs, GameMode switches the CPU to its performance governor, raises
+  # the game's priority, and pins it to the CCD with the 3D V-Cache (found from
+  # the L3 sizes; pin_cores is on by default).
+  programs.gamemode = {
+    enable = true;
+    settings.general.renice = 10;
+  };
+
+  # Hyprland as a second session next to COSMIC (pick it in the login screen).
+  # Its config and shortcuts are in home-manager/hyprland.
+  programs.hyprland.enable = true;
+  # Super+L; the NixOS module also sets up its PAM service.
+  programs.hyprlock.enable = true;
+  home-manager.users.${username} = {
+    imports = [../home-manager/hyprland];
+    wayland.windowManager.sway.config = swayGaming;
+  };
+
+  # The monitor is on the motherboard's USB-C port, which belongs to the CPU's
+  # built-in GPU. Render on the RX 9070 XT anyway (as COSMIC does) and use the
+  # built-in GPU only to scan out: Hyprland renders on the first device in
+  # AQ_DRM_DEVICES, and games pick the compositor's main GPU. The list is
+  # colon-separated, so the by-path names (which contain colons) can't be used;
+  # these rules add colon-free names, matched by PCI device ID
+  # (check with `lspci -nn`: 1002:7550 is the RX 9070 XT, 1002:13c0 the iGPU).
+  services.udev.extraRules = ''
+    SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x7550", SYMLINK+="dri/dgpu"
+    SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x13c0", SYMLINK+="dri/igpu"
+  '';
+
+  # Sway as a third session. Its config is home-manager/sway (shared with x16's
+  # home config); the pc-only settings are swayGaming above.
+  programs.sway = {
+    enable = true;
+    wrapperFeatures.gtk = true;
+  };
+
+  environment.sessionVariables = {
+    AQ_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
+    # The same for sway (wlroots): the first device renders.
+    WLR_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
+    # And no direct scanout, which capped fullscreen games at ~60 FPS across
+    # the two GPUs (as in Hyprland).
+    WLR_SCENE_DISABLE_DIRECT_SCANOUT = "1";
+    # Apps pick their GPU separately from the compositor, and without this they
+    # landed on the iGPU. Mesa's OpenGL and Vulkan device selection (and so
+    # Proton/DXVK) take the RX 9070 XT as the default GPU by vendor:device ID.
+    DRI_PRIME = "1002:7550";
+  };
   # Steam's client is an X11 app; ./cosmic/mod.nix turns XWayland off.
   services.desktopManager.cosmic.xwayland.enable = lib.mkForce true;
 
