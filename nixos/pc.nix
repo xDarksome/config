@@ -3,6 +3,7 @@
 {
   config,
   lib,
+  pkgs,
   username,
   ...
 }: let
@@ -57,7 +58,7 @@ in {
   # Super+L; the NixOS module also sets up its PAM service.
   programs.hyprlock.enable = true;
   home-manager.users.${username} = {
-    imports = [../home-manager/hyprland];
+    imports = [../home-manager/hyprland ../home-manager/kwin];
     wayland.windowManager.sway.config = swayGaming;
   };
 
@@ -80,6 +81,41 @@ in {
     wrapperFeatures.gtk = true;
   };
 
+  # KWin as a fourth session. NixOS packages it as Plasma: KWin plus Plasma's
+  # shell (panel, launcher, lock screen, settings); the optional KDE apps are
+  # left out. Shortcuts and keyboard settings: home-manager/kwin.
+  services.desktopManager.plasma6.enable = true;
+  environment.plasma6.excludePackages = with pkgs.kdePackages; [
+    aurorae
+    plasma-browser-integration
+    plasma-workspace-wallpapers
+    konsole
+    ark
+    elisa
+    gwenview
+    okular
+    kate
+    ktexteditor
+    khelpcenter
+    dolphin
+    baloo-widgets
+    dolphin-plugins
+    ffmpegthumbs
+    krdp
+    plasma-keyboard
+    qtvirtualkeyboard
+    union
+    qrca
+    discover
+    # Kept: spectacle (screenshots, Super+P), kconfig and qtbase (xdg-utils),
+    # qttools (qdbus).
+  ];
+  # Plasma turns these on by default.
+  programs.kde-pim.enable = false;
+  services.orca.enable = false;
+  # Plasma would make itself the default session.
+  services.displayManager.defaultSession = "cosmic";
+
   environment.sessionVariables = {
     AQ_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
     # The same for sway (wlroots): the first device renders.
@@ -87,6 +123,9 @@ in {
     # And no direct scanout, which capped fullscreen games at ~60 FPS across
     # the two GPUs (as in Hyprland).
     WLR_SCENE_DISABLE_DIRECT_SCANOUT = "1";
+    # And for KWin.
+    KWIN_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
+    KWIN_DRM_NO_DIRECT_SCANOUT = "1";
     # Apps pick their GPU separately from the compositor, and without this they
     # landed on the iGPU. Mesa's OpenGL and Vulkan device selection (and so
     # Proton/DXVK) take the RX 9070 XT as the default GPU by vendor:device ID.
