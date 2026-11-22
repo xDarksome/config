@@ -71,27 +71,19 @@ hl.config({
 -- Gaming latency
 hl.config({
     general = {
-        -- Lets windows with the `immediate` rule below skip vsync and present
-        -- frames as soon as they're ready (tearing only above the refresh rate
-        -- when VRR is on).
-        allow_tearing = true,
+        -- No tearing: the monitor hangs off the iGPU's USB-C while games
+        -- render on the RX 9070 XT, and with tearing allowed, fullscreen games
+        -- were capped at ~60 FPS. Without it, direct scanout works.
+        allow_tearing = false,
     },
     render = {
-        -- Off: the monitor hangs off the iGPU's USB-C while games render on
-        -- the RX 9070 XT, and scanning their frames out directly across the
-        -- two GPUs capped fullscreen games at ~60 FPS.
-        direct_scanout = 0,
+        -- Fullscreen windows go straight to the display, skipping composition.
+        direct_scanout = 1,
     },
     cursor = {
         -- Moving the cursor doesn't knock a fullscreen game out of VRR.
         no_break_fs_vrr = 1,
     },
-})
-
--- Steam games (native and Proton) are steam_app_<id>.
-hl.window_rule({
-    match     = { class = "^steam_app_.*$" },
-    immediate = true,
 })
 
 -- Apps

@@ -67,6 +67,9 @@ def main [kwriteconfig: string] {
       # Super on its own does nothing (as in COSMIC), instead of opening the
       # application launcher.
       {file: kwinrc, groups: [ModifierOnlyShortcuts], key: Meta, value: ""}
+      # No tearing: with the monitor on the iGPU and games on the RX 9070 XT,
+      # tearing capped fullscreen games at ~60 FPS in Hyprland.
+      {file: kwinrc, groups: [Compositing], key: AllowTearing, value: "false"}
       {file: kwinrc, groups: [Desktops], key: Number, value: "9"}
       {file: kwinrc, groups: [Desktops], key: Rows, value: "1"}
 

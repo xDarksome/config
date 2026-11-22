@@ -9,20 +9,11 @@
 }: let
   # Sway's pc-only output and gaming settings (merged into home-manager/sway).
   swayGaming = {
-    output."*" = {
-      # VRR. Sway has no fullscreen-only mode: it's on for the desktop too,
-      # which can flicker on some monitors.
-      adaptive_sync = "on";
-      # Let fullscreen games skip vsync (only those allowed below).
-      allow_tearing = "yes";
-    };
-    # Steam games (native and Proton) are steam_app_<id>.
-    window.commands = [
-      {
-        criteria.class = "^steam_app_";
-        command = "allow_tearing yes";
-      }
-    ];
+    # VRR. Sway has no fullscreen-only mode: it's on for the desktop too,
+    # which can flicker on some monitors. No tearing: with the monitor on the
+    # iGPU and games on the RX 9070 XT, tearing capped fullscreen games at ~60
+    # FPS in Hyprland (and allow_tearing defaults to off).
+    output."*".adaptive_sync = "on";
   };
 in {
   imports = [
@@ -118,14 +109,9 @@ in {
 
   environment.sessionVariables = {
     AQ_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
-    # The same for sway (wlroots): the first device renders.
+    # The same for sway (wlroots) and KWin: the first device renders.
     WLR_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
-    # And no direct scanout, which capped fullscreen games at ~60 FPS across
-    # the two GPUs (as in Hyprland).
-    WLR_SCENE_DISABLE_DIRECT_SCANOUT = "1";
-    # And for KWin.
     KWIN_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
-    KWIN_DRM_NO_DIRECT_SCANOUT = "1";
     # Apps pick their GPU separately from the compositor, and without this they
     # landed on the iGPU. Mesa's OpenGL and Vulkan device selection (and so
     # Proton/DXVK) take the RX 9070 XT as the default GPU by vendor:device ID.
