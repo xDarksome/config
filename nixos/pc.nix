@@ -63,6 +63,7 @@ in {
   services.udev.extraRules = ''
     SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x7550", SYMLINK+="dri/dgpu"
     SUBSYSTEM=="drm", KERNEL=="card[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x13c0", SYMLINK+="dri/igpu"
+    SUBSYSTEM=="drm", KERNEL=="renderD[0-9]*", ATTRS{vendor}=="0x1002", ATTRS{device}=="0x7550", SYMLINK+="dri/dgpu-render"
   '';
 
   # Sway as a third session. Its config is home-manager/sway (shared with x16's
@@ -112,6 +113,9 @@ in {
     # The same for sway (wlroots) and KWin: the first device renders.
     WLR_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
     KWIN_DRM_DEVICES = "/dev/dri/dgpu:/dev/dri/igpu";
+    # COSMIC picks a render GPU per output; pin it to the RX 9070 XT's render
+    # node so it doesn't render the USB-C output on the iGPU.
+    COSMIC_RENDER_DEVICE = "/dev/dri/dgpu-render";
     # Apps pick their GPU separately from the compositor, and without this they
     # landed on the iGPU. Mesa's OpenGL and Vulkan device selection (and so
     # Proton/DXVK) take the RX 9070 XT as the default GPU by vendor:device ID.

@@ -83,6 +83,10 @@ hl.config({
     cursor = {
         -- Moving the cursor doesn't knock a fullscreen game out of VRR.
         no_break_fs_vrr = 1,
+        -- Draw the cursor into the frame instead of on the iGPU's cursor
+        -- plane: across the two GPUs, the hardware cursor kept the previous
+        -- window's cursor shape after switching windows.
+        no_hardware_cursors = 1,
     },
 })
 
