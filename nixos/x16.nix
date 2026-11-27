@@ -134,5 +134,9 @@
   # The state versions are required and should stay at the version you
   # originally installed.
   system.stateVersion = "22.05";
-  home-manager.users.darksome.home.stateVersion = "24.05";
+  home-manager.users.${username} = {
+    home.stateVersion = "24.05";
+    # Brave with Auto Tab Discard.
+    imports = [../home-manager/brave];
+  };
 }
