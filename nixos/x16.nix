@@ -17,6 +17,9 @@
     ./syncthing/mod.nix
 
     ./qbittorrent
+
+    # Auto Tab Discard settings for Brave.
+    ./brave.nix
   ];
 
   hardware = {
